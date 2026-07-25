@@ -1,0 +1,13 @@
+{
+  "runtime": {
+    "obsidian": "1.8.10",
+    "electron": "34.2.0",
+    "chrome": "132.0.6834.196"
+  },
+  "input": "The quick brown fox jumps over the lazy dog. repeated five times as separate sentence chunks",
+  "chunks": 5,
+  "samples": 361600,
+  "first_audio_ms": 3040,
+  "total_synthesis_ms": 11540,
+  "streaming": true
+}
