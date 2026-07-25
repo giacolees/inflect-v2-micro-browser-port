@@ -1,6 +1,53 @@
 <!doctype html><meta charset="utf-8" /><title>Inflect Micro v2</title>
-<style>body{font:16px system-ui;margin:0;background:#f6f4ee;color:#222}main{max-width:780px;margin:48px auto;padding:28px;background:#fff;border:1px solid #d8d4ca;border-radius:12px}textarea{width:100%;min-height:140px;box-sizing:border-box;padding:12px;font:15px ui-monospace;border:1px solid #aaa;border-radius:7px}button,a{display:inline-block;margin:16px 8px 12px 0;background:#174a45;color:#fff;border:0;border-radius:6px;padding:11px 16px;font-weight:700;text-decoration:none}audio{width:100%}</style>
-<main><h1>Inflect Micro v2</h1><p>Preparing local eSpeak-NG WASM + ONNX Runtime Web synthesis…</p><textarea id="text"></textarea><button id="synthesize">Synthesize locally</button><a id="download" download="inflect.wav">Download WAV</a><p id="status"></p><audio id="audio" controls></audio></main>
+<style>
+  body {
+    font: 16px system-ui;
+    margin: 0;
+    background: #f6f4ee;
+    color: #222;
+  }
+  main {
+    max-width: 780px;
+    margin: 48px auto;
+    padding: 28px;
+    background: #fff;
+    border: 1px solid #d8d4ca;
+    border-radius: 12px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 140px;
+    box-sizing: border-box;
+    padding: 12px;
+    font: 15px ui-monospace;
+    border: 1px solid #aaa;
+    border-radius: 7px;
+  }
+  button,
+  a {
+    display: inline-block;
+    margin: 16px 8px 12px 0;
+    background: #174a45;
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 11px 16px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  audio {
+    width: 100%;
+  }
+</style>
+<main>
+  <h1>Inflect Micro v2</h1>
+  <p>Preparing local eSpeak-NG WASM + ONNX Runtime Web synthesis…</p>
+  <textarea id="text"></textarea
+  ><button id="synthesize">Synthesize locally</button
+  ><a id="download" download="inflect.wav">Download WAV</a>
+  <p id="status"></p>
+  <audio id="audio" controls></audio>
+</main>
 <script src="/node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
 <script type="module">
   import {
@@ -64,9 +111,9 @@
         });
         return;
       }
+      const params = new URLSearchParams(location.search);
       const inputText =
-        new URLSearchParams(location.search).get("text") ??
-        "The quick brown fox jumps over the lazy dog.";
+        params.get("text") ?? "The quick brown fox jumps over the lazy dog.";
       const sourceChunks = splitText(inputText);
       const frontendOutputs = frontend.phonemizeChunks(inputText);
       if (sourceChunks.length !== frontendOutputs.length)
@@ -87,7 +134,9 @@
           ),
           latent_noise: new ort.Tensor(
             "float32",
-            seededNormalNoise(seed, LATENT_CHANNELS, MAX_FRAMES),
+            params.has("zeroNoise")
+              ? new Float32Array(LATENT_CHANNELS * MAX_FRAMES)
+              : seededNormalNoise(seed, LATENT_CHANNELS, MAX_FRAMES),
             [1, LATENT_CHANNELS, MAX_FRAMES],
           ),
         });
@@ -140,22 +189,34 @@
       const result = {
         ok: true,
         chunks: frontendOutputs.length,
-        tokenCount: frontendOutputs.reduce((sum, output) => sum + output.ids.length, 0),
+        tokenCount: frontendOutputs.reduce(
+          (sum, output) => sum + output.ids.length,
+          0,
+        ),
         loadMs: performance.now() - started,
-        frames, samples: waveform.length, finite, min, max, sum, sumSquares,
-        wavBytes: wav.byteLength, wavValid,
+        frames,
+        samples: waveform.length,
+        finite,
+        min,
+        max,
+        sum,
+        sumSquares,
+        wavBytes: wav.byteLength,
+        wavValid,
       };
-      const params = new URLSearchParams(location.search);
       if (params.has("test")) {
+        window.__inflectWaveform = waveform;
         document.body.textContent = JSON.stringify(result);
         return;
       }
       const url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
-      document.querySelector("main p").textContent = "Local eSpeak-NG WASM + ONNX Runtime Web synthesis.";
+      document.querySelector("main p").textContent =
+        "Local eSpeak-NG WASM + ONNX Runtime Web synthesis.";
       document.querySelector("#text").value = inputText;
       document.querySelector("#audio").src = url;
       document.querySelector("#download").href = url;
-      document.querySelector("#status").textContent = `${result.chunks} chunk(s), ${result.samples} samples, ${(result.loadMs / 1000).toFixed(2)} s; no text/audio was sent to a server.`;
+      document.querySelector("#status").textContent =
+        `${result.chunks} chunk(s), ${result.samples} samples, ${(result.loadMs / 1000).toFixed(2)} s; no text/audio was sent to a server.`;
       document.querySelector("#synthesize").onclick = () => {
         const text = document.querySelector("#text").value;
         location.search = `?text=${encodeURIComponent(text)}`;
