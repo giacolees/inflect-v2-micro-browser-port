@@ -51,9 +51,13 @@ try {
 		const button = page.locator("#synthesize");
 		await button.waitFor({ state: "visible", timeout: 120000 });
 		await button.click();
-		await page.waitForFunction(() => window.__inflectLastResult !== null, null, {
-			timeout: 120000,
-		});
+		await page.waitForFunction(
+			() => window.__inflectLastResult !== null,
+			null,
+			{
+				timeout: 120000,
+			},
+		);
 		const result = await page.evaluate(() => window.__inflectLastResult);
 		if (!result?.ok)
 			throw new Error(`BENCHMARK_FAILED ${JSON.stringify(result)}`);
@@ -65,7 +69,8 @@ try {
 		});
 		await page.close();
 	}
-	const median = (values) => values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
+	const median = (values) =>
+		values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
 	console.log(
 		`BROWSER_BENCHMARK ${JSON.stringify({
 			runs: results,

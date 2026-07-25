@@ -77,9 +77,12 @@ npm run verify-browser-port
 node scripts/export_browser_waveform.mjs
 .venv/bin/python scripts/compare_browser_waveform.py
 npm run benchmark-browser
+npm run benchmark-first-audio
 npm run benchmark-python-onnx
 ```
 
+`npm run benchmark-first-audio` compares time to the first decoded browser
+chunk for this repository's fixed graphs and the official dynamic ONNX pair.
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for commands and recorded
 cross-runtime results. [docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md)
 documents intentional differences from upstream Python, including phonemizer,

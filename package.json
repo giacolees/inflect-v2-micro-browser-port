@@ -7,6 +7,7 @@
     "verify-browser-port": "node scripts/verify.mjs",
     "browser-proof": "node scripts/browser_proof.mjs",
     "benchmark-browser": "node scripts/benchmark_browser.mjs",
+    "benchmark-first-audio": "node scripts/benchmark_onnx_first_audio.mjs",
     "benchmark-python-onnx": ".venv/bin/python scripts/benchmark_python_vs_onnx.py",
     "dev": "node scripts/dev_server.mjs",
     "evaluate-permissive-g2p": "node scripts/evaluate_permissive_g2p.cjs"
