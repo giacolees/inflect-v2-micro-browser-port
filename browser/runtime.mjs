@@ -26,30 +26,52 @@ export function seededNormalNoise(seed, channels, frames) {
 }
 
 export function boundaryPauseSeconds(chunk) {
-  return { "?": 0.28, "!": 0.24, ".": 0.22, ";": 0.16, ":": 0.13, ",": 0.09 }[chunk.trim().at(-1)] ?? 0.08;
+	return (
+		{ "?": 0.28, "!": 0.24, ".": 0.22, ";": 0.16, ":": 0.13, ",": 0.09 }[
+			chunk.trim().at(-1)
+		] ?? 0.08
+	);
 }
 
 export function edgeFade(samples, sampleRate = SAMPLE_RATE, milliseconds = 5) {
-  const output = samples.slice();
-  const frames = Math.min(Math.round((sampleRate * milliseconds) / 1000), Math.floor(output.length / 2));
-  for (let index = 0; index < frames; index += 1) {
-    const gain = frames === 1 ? 1 : index / (frames - 1);
-    output[index] *= gain;
-    output[output.length - 1 - index] *= gain;
-  }
-  return output;
+	const output = samples.slice();
+	const frames = Math.min(
+		Math.round((sampleRate * milliseconds) / 1000),
+		Math.floor(output.length / 2),
+	);
+	for (let index = 0; index < frames; index += 1) {
+		const gain = frames === 1 ? 1 : index / (frames - 1);
+		output[index] *= gain;
+		output[output.length - 1 - index] *= gain;
+	}
+	return output;
 }
 
-export function concatenateChunks(chunks, sourceChunks, sampleRate = SAMPLE_RATE) {
-  const total = chunks.reduce((sum, chunk, index) => sum + chunk.length + (index ? Math.round(sampleRate * boundaryPauseSeconds(sourceChunks[index - 1])) : 0), 0);
-  const output = new Float32Array(total);
-  let offset = 0;
-  for (let index = 0; index < chunks.length; index += 1) {
-    if (index) offset += Math.round(sampleRate * boundaryPauseSeconds(sourceChunks[index - 1]));
-    output.set(edgeFade(chunks[index], sampleRate), offset);
-    offset += chunks[index].length;
-  }
-  return output;
+export function concatenateChunks(
+	chunks,
+	sourceChunks,
+	sampleRate = SAMPLE_RATE,
+) {
+	const total = chunks.reduce(
+		(sum, chunk, index) =>
+			sum +
+			chunk.length +
+			(index
+				? Math.round(sampleRate * boundaryPauseSeconds(sourceChunks[index - 1]))
+				: 0),
+		0,
+	);
+	const output = new Float32Array(total);
+	let offset = 0;
+	for (let index = 0; index < chunks.length; index += 1) {
+		if (index)
+			offset += Math.round(
+				sampleRate * boundaryPauseSeconds(sourceChunks[index - 1]),
+			);
+		output.set(edgeFade(chunks[index], sampleRate), offset);
+		offset += chunks[index].length;
+	}
+	return output;
 }
 
 export function encodeFloat32Wav(samples, sampleRate = SAMPLE_RATE) {
