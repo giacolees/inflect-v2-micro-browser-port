@@ -26,6 +26,8 @@ const server = http.createServer(async (request, response) => {
 		const body = await readFile(path);
 		response.writeHead(200, {
 			"Content-Type": mime[extname(path)] ?? "application/octet-stream",
+			"Cross-Origin-Opener-Policy": "same-origin",
+			"Cross-Origin-Embedder-Policy": "require-corp",
 		});
 		response.end(body);
 	} catch {
@@ -43,24 +45,33 @@ try {
 	for (let run = 0; run < runs; run += 1) {
 		const page = await browser.newPage();
 		await page.goto(
-			`http://127.0.0.1:${server.address().port}/browser/index.html?test=1&text=${encodeURIComponent(text)}`,
+			`http://127.0.0.1:${server.address().port}/browser/index.html?text=${encodeURIComponent(text)}`,
 			{ waitUntil: "networkidle", timeout: 120000 },
 		);
-		const result = JSON.parse(
-			await page.locator("body").textContent({ timeout: 120000 }),
-		);
-		if (!result.ok)
+		const button = page.locator("#synthesize");
+		await button.waitFor({ state: "visible", timeout: 120000 });
+		await button.click();
+		await page.waitForFunction(() => window.__inflectLastResult !== null, null, {
+			timeout: 120000,
+		});
+		const result = await page.evaluate(() => window.__inflectLastResult);
+		if (!result?.ok)
 			throw new Error(`BENCHMARK_FAILED ${JSON.stringify(result)}`);
 		results.push({
+			firstAudioMs: result.firstAudioMs,
 			ms: result.loadMs,
 			chunks: result.chunks,
 			samples: result.samples,
 		});
 		await page.close();
 	}
-	const times = results.map((result) => result.ms).sort((a, b) => a - b);
+	const median = (values) => values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
 	console.log(
-		`BROWSER_BENCHMARK ${JSON.stringify({ runs: results, medianMs: times[Math.floor(times.length / 2)] })}`,
+		`BROWSER_BENCHMARK ${JSON.stringify({
+			runs: results,
+			medianFirstAudioMs: median(results.map((result) => result.firstAudioMs)),
+			medianTotalMs: median(results.map((result) => result.ms)),
+		})}`,
 	);
 } finally {
 	await browser.close();

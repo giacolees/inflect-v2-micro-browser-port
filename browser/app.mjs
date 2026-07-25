@@ -107,8 +107,10 @@ async function main() {
 	document.querySelector("#runtime-state").textContent =
 		"Ready · WASM execution provider";
 	button.disabled = false;
+	window.__inflectLastResult = null;
 	button.onclick = async () => {
 		button.disabled = true;
+		window.__inflectLastResult = null;
 		status.textContent = "Preparing a new synthesis…";
 		const runStarted = performance.now();
 		const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
@@ -141,6 +143,7 @@ async function main() {
 			);
 			audio.src = downloadUrl;
 			document.querySelector("#download").href = downloadUrl;
+			window.__inflectLastResult = output.result;
 			status.textContent = `${output.result.chunks} chunk(s) · ${output.result.tokenCount} token IDs · first audio ${(firstAudioMs / 1000).toFixed(2)} s · complete ${(output.result.loadMs / 1000).toFixed(2)} s`;
 		} catch (error) {
 			status.textContent = `Synthesis failed: ${error.message}`;
