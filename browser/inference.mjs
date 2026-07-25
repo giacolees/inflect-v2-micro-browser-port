@@ -1,8 +1,4 @@
-import {
-	createInflectFrontend,
-	MAX_TOKENS,
-	splitText,
-} from "/browser/frontend.mjs";
+import { createInflectFrontend, MAX_TOKENS } from "/browser/frontend.mjs";
 import { seededNormalNoise } from "/browser/runtime.mjs";
 
 export const SAMPLE_RATE = 24000;
@@ -90,10 +86,8 @@ export async function createInflectInference() {
 		return {
 			frontend,
 			async synthesize(text, { zeroNoise = false, onChunk } = {}) {
-				const sourceChunks = splitText(text);
 				const outputs = frontend.phonemizeChunks(text);
-				if (sourceChunks.length !== outputs.length)
-					throw new Error("Frontend chunk mismatch");
+				const sourceChunks = outputs.map((output) => output.source);
 				const pieces = [];
 				for (let index = 0; index < outputs.length; index += 1) {
 					const piece = await synthesizeChunk(outputs[index], index, zeroNoise);

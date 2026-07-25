@@ -246,6 +246,28 @@ export function splitText(text, limit = 280) {
 	return chunks;
 }
 
+function splitOversizedChunk(chunk) {
+	const middle = Math.floor(chunk.length / 2);
+	const findBoundary = (direction) => {
+		for (
+			let index = middle;
+			index > 0 && index < chunk.length - 1;
+			index += direction
+		) {
+			if (/[\s,;:]/.test(chunk[index])) return index;
+		}
+		return -1;
+	};
+	const before = findBoundary(-1);
+	const boundary = before >= 0 ? before : findBoundary(1);
+	if (boundary < 1)
+		throw new Error(
+			`A single word exceeds Inflect's ${MAX_TOKENS}-token limit`,
+		);
+	const offset = /\s/.test(chunk[boundary]) ? boundary : boundary + 1;
+	return [chunk.slice(0, offset).trim(), chunk.slice(offset).trim()];
+}
+
 export async function createInflectFrontend() {
 	const ephone = await createEphone();
 	const phonemize = (text) => {
@@ -265,14 +287,20 @@ export async function createInflectFrontend() {
 		const interspersedIds = [0, ...ids.flatMap((id) => [id, 0])];
 		return { normalizedText, phonemeText, ids: interspersedIds };
 	};
-	const phonemizeChunk = (chunk) => {
-		const output = phonemize(chunk);
-		if (output.ids.length > MAX_TOKENS)
-			throw new Error(`Inflect chunk exceeds ${MAX_TOKENS} token IDs`);
-		return output;
+	const phonemizeChunks = (text) => {
+		const pending = splitText(text);
+		const outputs = [];
+		while (pending.length) {
+			const source = pending.shift();
+			const output = phonemize(source);
+			if (output.ids.length <= MAX_TOKENS) {
+				outputs.push({ ...output, source });
+				continue;
+			}
+			const [left, right] = splitOversizedChunk(source);
+			pending.unshift(left, right);
+		}
+		return outputs;
 	};
-	return {
-		phonemize,
-		phonemizeChunks: (text) => splitText(text).map(phonemizeChunk),
-	};
+	return { phonemize, phonemizeChunks };
 }
