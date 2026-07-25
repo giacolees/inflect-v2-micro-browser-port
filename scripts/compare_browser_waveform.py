@@ -25,11 +25,16 @@ except (IndexError, TypeError, ValueError) as exc:
     raise RuntimeError("native ONNX returned invalid frame length") from exc
 native = cast(np.ndarray, decoder.run(None, {"latent": latent[:, :, :frames]})[0]).reshape(-1).astype(np.float32)
 browser = np.fromfile(ROOT / "artifacts" / "browser-zero-noise.f32", dtype=np.float32)
+latent.astype(np.float32).tofile(ROOT / "artifacts" / "native-zero-noise-latent.f32")
+browser_latent = np.fromfile(ROOT / "artifacts" / "browser-zero-noise-latent.f32", dtype=np.float32)
+latent_prefix = latent[:, :, :frames].reshape(-1)
+if latent_prefix.shape != browser_latent.shape:
+    raise RuntimeError(f"latent shape mismatch: native={latent_prefix.shape} browser={browser_latent.shape}")
 if native.shape != browser.shape:
     raise RuntimeError(f"shape mismatch: native={native.shape} browser={browser.shape}")
 delta = native.astype(np.float64) - browser.astype(np.float64)
 try:
-    summary = {"samples": int(native.size), "frames": frames, "max_abs_error": float(np.abs(delta).max()), "rmse": float(np.sqrt(np.mean(delta ** 2))), "correlation": float(np.corrcoef(native, browser)[0, 1]), "native_range": [float(native.min()), float(native.max())], "browser_range": [float(browser.min()), float(browser.max())]}
+    summary = {"samples": int(native.size), "frames": frames, "max_abs_error": float(np.abs(delta).max()), "rmse": float(np.sqrt(np.mean(delta ** 2))), "correlation": float(np.corrcoef(native, browser)[0, 1]), "latent_max_abs_error": float(np.abs(latent_prefix - browser_latent).max()), "latent_correlation": float(np.corrcoef(latent_prefix, browser_latent)[0, 1]), "native_range": [float(native.min()), float(native.max())], "browser_range": [float(browser.min()), float(browser.max())]}
 except (FloatingPointError, TypeError, ValueError) as exc:
     raise RuntimeError("could not compute browser/native metrics") from exc
 (ROOT / "fixtures" / "browser-native-zero-noise-comparison.json").write_text(json.dumps(summary, indent=2) + "\n")

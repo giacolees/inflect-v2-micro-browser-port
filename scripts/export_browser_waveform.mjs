@@ -41,14 +41,15 @@ try {
 		`http://127.0.0.1:${server.address().port}/browser/index.html?test=1&zeroNoise=1`,
 		{ waitUntil: "networkidle", timeout: 120000 },
 	);
-	const values = await page.evaluate(() =>
+	const [values, latent, ids] = await page.evaluate(() => [
 		Array.from(window.__inflectWaveform),
-	);
-	await writeFile(
-		"artifacts/browser-zero-noise.f32",
-		Buffer.from(new Float32Array(values).buffer),
-	);
-	console.log(`BROWSER_WAVEFORM_EXPORTED samples=${values.length}`);
+		Array.from(window.__inflectLatent),
+		window.__inflectIds,
+	]);
+	await writeFile("artifacts/browser-zero-noise.f32", Buffer.from(new Float32Array(values).buffer));
+	await writeFile("artifacts/browser-zero-noise-latent.f32", Buffer.from(new Float32Array(latent).buffer));
+	await writeFile("artifacts/browser-zero-noise-ids.json", JSON.stringify(ids));
+	console.log(`BROWSER_WAVEFORM_EXPORTED samples=${values.length} latent=${latent.length}`);
 } finally {
 	await browser.close();
 	server.close();

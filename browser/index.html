@@ -156,17 +156,17 @@
             ]),
           })
         ).waveform.data;
-        return { frames, waveform };
+        return { frames, waveform, latent: new Float32Array(latent) };
       };
       phase = "running-synthesis";
       const pieces = [];
       let frames = 0;
       for (let index = 0; index < frontendOutputs.length; index += 1) {
         const result = await synthesizeChunk(frontendOutputs[index], index);
-        pieces.push(result.waveform);
+        pieces.push(result);
         frames += result.frames;
       }
-      const waveform = concatenateChunks(pieces, sourceChunks);
+      const waveform = concatenateChunks(pieces.map((piece) => piece.waveform), sourceChunks);
       let finite = true,
         min = Infinity,
         max = -Infinity,
@@ -206,6 +206,8 @@
       };
       if (params.has("test")) {
         window.__inflectWaveform = waveform;
+        window.__inflectLatent = pieces[0].latent;
+        window.__inflectIds = frontendOutputs[0].ids;
         document.body.textContent = JSON.stringify(result);
         return;
       }
