@@ -8,10 +8,12 @@ import { seededNormalNoise } from "/browser/runtime.mjs";
 export const SAMPLE_RATE = 24000;
 const MAX_FRAMES = 4000;
 const LATENT_CHANNELS = 192;
+export const MODEL_BASE_URL =
+	"https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX/resolve/main";
 
-async function fetchModel(path) {
-	const response = await fetch(path);
-	if (!response.ok) throw new Error(`Missing model: ${path}`);
+async function fetchModel(name) {
+	const response = await fetch(`${MODEL_BASE_URL}/${name}`);
+	if (!response.ok) throw new Error(`Could not download ${name} (${response.status})`);
 	return response.arrayBuffer();
 }
 
@@ -29,10 +31,10 @@ export async function createInflectInference() {
 		ort.env.wasm.wasmPaths = "/node_modules/onnxruntime-web/dist/";
 		ort.env.wasm.numThreads = 1;
 		const [core, decoder, frontend] = await Promise.all([
-			fetchModel("/browser/inflect-core.onnx").then((model) =>
+			fetchModel("inflect-core.onnx").then((model) =>
 				ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
 			),
-			fetchModel("/browser/inflect-decoder.onnx").then((model) =>
+			fetchModel("inflect-decoder.onnx").then((model) =>
 				ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
 			),
 			createInflectFrontend(),

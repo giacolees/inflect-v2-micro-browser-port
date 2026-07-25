@@ -26,29 +26,25 @@ sidecar, hosted endpoint, native ONNX Runtime, or substitute browser model.
 
 ### Prerequisites
 
-- Python 3.11 with `source/requirements-tested.txt`, `onnx==1.19.1`, and
-  `onnxruntime==1.23.2` for exporting and verification.
-- Node/npm and Google Chrome for browser checks.
+- Node/npm.
+- Google Chrome for browser checks.
 
-### Prepare model assets
+### Start the browser implementation
 
-Download the upstream checkpoint into both `source/model.pth` and
-`artifacts/model.pth`.
-
-<!-- markdownlint-disable MD013 -->
-| Asset | SHA-256 |
-| --- | --- |
-| `model.pth` | `3eede065c9ccfa88ade0a5a9a5c23de34afcbbb32213e59aad44d5cf100fdee8` |
-<!-- markdownlint-enable MD013 -->
-
-Export and copy the browser graphs:
+The browser downloads its two required graphs from the public
+[Inflect-Micro-v2-ONNX model repository](https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX)
+when it creates the ONNX Runtime sessions. No local checkpoint or copied ONNX
+assets are needed to run the page.
 
 ```bash
-PYTHONPATH=source:source/runtime .venv/bin/python scripts/export_onnx.py
-cp artifacts/inflect-core.onnx artifacts/inflect-decoder.onnx browser/
 npm ci
 npm run dev
 ```
+
+To re-export the graphs or run the Python-backed verification commands, also
+install Python 3.11 with `source/requirements-tested.txt`, `onnx==1.19.1`, and
+`onnxruntime==1.23.2`; the upstream checkpoint must be present at both
+`source/model.pth` and `artifacts/model.pth`.
 
 Open <http://127.0.0.1:4173/browser/index.html>, enter text, and choose
 **Run browser inference**. Each finished chunk is scheduled through Web Audio
@@ -63,7 +59,7 @@ while the next one is inferred; the combined audio can then be downloaded as a
 | `browser/index.html` | Explains the pipeline and provides the local inference UI. |
 | `browser/app.mjs` | Coordinates UI state, streaming Web Audio, test mode, and WAV download. |
 | `browser/frontend.mjs` | Text normalization, chunking, ephone WASM integration, and model token IDs. |
-| `browser/inference.mjs` | Loads ONNX Runtime Web/WASM sessions and executes the core and decoder graphs. |
+| `browser/inference.mjs` | Downloads the ONNX graphs, creates ORT-Web/WASM sessions, and runs inference. |
 | `browser/runtime.mjs` | Deterministic noise, chunk pauses/fades, and float WAV encoding. |
 | `scripts/` | Graph export, parity checks, browser proof, and benchmarks. |
 | `source/` | Pinned upstream Python reference used for graph export and baselines. |
