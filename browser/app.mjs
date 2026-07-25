@@ -8,7 +8,7 @@ import {
 
 const params = new URLSearchParams(location.search);
 const isTest = params.has("test");
-const started = performance.now();
+const pageStarted = performance.now();
 let downloadUrl;
 
 function resultFor(completed, loadMs, firstAudioMs) {
@@ -89,7 +89,7 @@ async function main() {
 		const completed = await inference.synthesize(inputText, {
 			zeroNoise: params.has("zeroNoise"),
 		});
-		const output = resultFor(completed, performance.now() - started, null);
+		const output = resultFor(completed, performance.now() - pageStarted, null);
 		window.__inflectWaveform = output.waveform;
 		window.__inflectLatent = output.latent;
 		window.__inflectIds = output.ids;
@@ -109,6 +109,8 @@ async function main() {
 	button.disabled = false;
 	button.onclick = async () => {
 		button.disabled = true;
+		status.textContent = "Preparing a new synthesis…";
+		const runStarted = performance.now();
 		const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
 		let nextStart = audioContext.currentTime + 0.05;
 		let firstAudioMs = null;
@@ -124,12 +126,13 @@ async function main() {
 						index + 1 === total,
 						nextStart,
 					);
-					if (firstAudioMs === null) firstAudioMs = performance.now() - started;
+					if (firstAudioMs === null)
+						firstAudioMs = performance.now() - runStarted;
 				},
 			});
 			const output = resultFor(
 				completed,
-				performance.now() - started,
+				performance.now() - runStarted,
 				firstAudioMs,
 			);
 			if (downloadUrl) URL.revokeObjectURL(downloadUrl);
