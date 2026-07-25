@@ -6,6 +6,8 @@ artifacts/*
 source/model.pth
 artifacts/inflect-synthesis.onnx
 browser/inflect-synthesis.onnx
+browser/inflect-core.onnx
+browser/inflect-decoder.onnx
 artifacts/python-baseline/*.wav
 artifacts/browser-*.log
 __pycache__/

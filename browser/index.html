@@ -2,70 +2,62 @@
 <script src="/node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
 <script>
   (async () => {
+    const MAX_TOKENS = 512;
+    const MAX_FRAMES = 4000;
+    const LATENT_CHANNELS = 192;
     const started = performance.now();
     let phase = "initializing";
     try {
-      ort.env.logLevel = "verbose";
       ort.env.wasm.wasmPaths = "/node_modules/onnxruntime-web/dist/";
       ort.env.wasm.numThreads = 1;
-      const model = await fetch("/browser/inflect-synthesis.onnx").then((r) => {
-        if (!r.ok) throw new Error(`model HTTP ${r.status}`);
-        return r.arrayBuffer();
+      const fetchModel = async (path) => {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`model HTTP ${response.status}`);
+        return response.arrayBuffer();
+      };
+      phase = "creating-sessions";
+      const [core, decoder] = await Promise.all([
+        fetchModel("/browser/inflect-core.onnx").then((model) =>
+          ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
+        ),
+        fetchModel("/browser/inflect-decoder.onnx").then((model) =>
+          ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
+        ),
+      ]);
+      const tokenValues = [0, 1, 2, 3, 4, 5, 6, 7];
+      const paddedTokens = new BigInt64Array(MAX_TOKENS);
+      for (let index = 0; index < tokenValues.length; index += 1) {
+        paddedTokens[index] = BigInt(tokenValues[index]);
+      }
+      phase = "running-core";
+      const coreOutput = await core.run({
+        tokens: new ort.Tensor("int64", paddedTokens, [1, MAX_TOKENS]),
+        lengths: new ort.Tensor("int64", BigInt64Array.of(BigInt(tokenValues.length)), [1]),
+        latent_noise: new ort.Tensor("float32", new Float32Array(LATENT_CHANNELS * MAX_FRAMES), [1, LATENT_CHANNELS, MAX_FRAMES]),
       });
-      phase = "creating-session";
-      const session = await ort.InferenceSession.create(model, {
-        executionProviders: ["wasm"],
-      });
-      const tokens = [0, 1, 2, 3]; // graph smoke input; Python frontend IDs are separately recorded.
-      const input = new ort.Tensor(
-        "int64",
-        BigInt64Array.from(tokens, BigInt),
-        [1, tokens.length],
-      );
-      const length = new ort.Tensor(
-        "int64",
-        BigInt64Array.from([BigInt(tokens.length)]),
-        [1],
-      );
-      const noise = new ort.Tensor(
-        "float32",
-        new Float32Array(192 * 4000),
-        [1, 192, 4000],
-      );
-      const firstStart = performance.now();
-      phase = "running-synthesis";
-      const output = (
-        await session.run({
-          tokens: input,
-          lengths: length,
-          latent_noise: noise,
-        })
-      ).waveform;
-      const data = output.data;
+      const frames = Number(coreOutput.frame_lengths.data[0]);
+      if (!Number.isInteger(frames) || frames < 1 || frames > MAX_FRAMES) {
+        throw new Error(`invalid predicted frame length ${frames}`);
+      }
+      phase = "running-decoder";
+      const latent = coreOutput.latent.data.subarray(0, LATENT_CHANNELS * frames);
+      const waveform = (await decoder.run({
+        latent: new ort.Tensor("float32", latent, [1, LATENT_CHANNELS, frames]),
+      })).waveform.data;
       let finite = true;
       let min = Infinity;
       let max = -Infinity;
-      for (const sample of data) {
+      for (const sample of waveform) {
         finite &&= Number.isFinite(sample);
         min = Math.min(min, sample);
         max = Math.max(max, sample);
       }
       document.body.textContent = JSON.stringify({
-        ok: true,
-        loadMs: firstStart - started,
-        synthesisMs: performance.now() - firstStart,
-        samples: data.length,
-        finite,
-        min,
-        max,
+        ok: true, loadMs: performance.now() - started, frames, samples: waveform.length,
+        finite, min, max,
       });
     } catch (error) {
-      document.body.textContent = JSON.stringify({
-        ok: false,
-        phase,
-        error: String(error),
-        stack: error.stack,
-      });
+      document.body.textContent = JSON.stringify({ ok: false, phase, error: String(error), stack: error.stack });
     }
   })();
 </script>

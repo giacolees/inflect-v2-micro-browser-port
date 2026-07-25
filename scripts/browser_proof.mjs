@@ -52,8 +52,14 @@ try {
 		timeout: 120000,
 	});
 	const result = JSON.parse(await page.locator("body").textContent());
-	if (!result.ok || !result.finite || result.samples === 0)
+	if (
+		!result.ok ||
+		!result.finite ||
+		!Number.isInteger(result.frames) ||
+		result.samples !== result.frames * 256
+	) {
 		throw new Error(`BROWSER_ORT_FAILED ${JSON.stringify(result)}`);
+	}
 	console.log(`CHROMIUM_ORT_WEB_OK ${JSON.stringify(result)}`);
 } finally {
 	await browser.close();
