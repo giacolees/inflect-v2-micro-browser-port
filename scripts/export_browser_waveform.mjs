@@ -46,10 +46,18 @@ try {
 		Array.from(window.__inflectLatent),
 		window.__inflectIds,
 	]);
-	await writeFile("artifacts/browser-zero-noise.f32", Buffer.from(new Float32Array(values).buffer));
-	await writeFile("artifacts/browser-zero-noise-latent.f32", Buffer.from(new Float32Array(latent).buffer));
+	await writeFile(
+		"artifacts/browser-zero-noise.f32",
+		Buffer.from(new Float32Array(values).buffer),
+	);
+	await writeFile(
+		"artifacts/browser-zero-noise-latent.f32",
+		Buffer.from(new Float32Array(latent).buffer),
+	);
 	await writeFile("artifacts/browser-zero-noise-ids.json", JSON.stringify(ids));
-	console.log(`BROWSER_WAVEFORM_EXPORTED samples=${values.length} latent=${latent.length}`);
+	console.log(
+		`BROWSER_WAVEFORM_EXPORTED samples=${values.length} latent=${latent.length}`,
+	);
 } finally {
 	await browser.close();
 	server.close();

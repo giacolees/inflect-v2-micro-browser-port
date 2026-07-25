@@ -51,6 +51,22 @@ class PaddedSynthesisCore(torch.nn.Module):
         return z, frame_lengths
 
 
+class EncoderDuration(torch.nn.Module):
+    """Diagnostic boundary before alignment and residual flow."""
+
+    def __init__(self, model: SynthesizerTrn):
+        super().__init__()
+        self.model = model
+
+    def forward(
+        self, tokens: torch.Tensor, lengths: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        hidden, means, log_scales, x_mask = self.model.enc_p(tokens, lengths)
+        log_durations = self.model.dp(hidden, x_mask)
+        durations = torch.ceil(torch.exp(log_durations) * x_mask)
+        return hidden, means, log_scales, x_mask, durations
+
+
 class DynamicDecoder(torch.nn.Module):
     """Decode a duration-trimmed latent sequence to waveform samples."""
 
@@ -80,6 +96,7 @@ def load_model() -> SynthesizerTrn:
 def main() -> None:
     model = load_model()
     core = PaddedSynthesisCore(model).eval()
+    encoder_duration = EncoderDuration(model).eval()
     decoder = DynamicDecoder(model).eval()
     tokens = torch.zeros((1, MAX_TOKENS), dtype=torch.int64)
     lengths = torch.tensor([4], dtype=torch.int64)
@@ -97,6 +114,15 @@ def main() -> None:
         dynamo=False,
     )
     torch.onnx.export(
+        encoder_duration,
+        (tokens, lengths),
+        output / "inflect-encoder-duration.onnx",
+        opset_version=18,
+        input_names=["tokens", "lengths"],
+        output_names=["hidden", "means", "log_scales", "x_mask", "durations"],
+        dynamo=False,
+    )
+    torch.onnx.export(
         decoder,
         (torch.zeros((1, LATENT_CHANNELS, 16), dtype=torch.float32),),
         output / "inflect-decoder.onnx",
@@ -106,7 +132,7 @@ def main() -> None:
         dynamic_axes={"latent": {2: "frames"}, "waveform": {2: "samples"}},
         dynamo=False,
     )
-    print(f"ONNX_EXPORT_OK core={output / 'inflect-core.onnx'} decoder={output / 'inflect-decoder.onnx'}")
+    print(f"ONNX_EXPORT_OK core={output / 'inflect-core.onnx'} encoder_duration={output / 'inflect-encoder-duration.onnx'} decoder={output / 'inflect-decoder.onnx'}")
 
 
 if __name__ == "__main__":

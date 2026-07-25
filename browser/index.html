@@ -143,10 +143,16 @@
         const frames = Number(coreOutput.frame_lengths.data[0]);
         if (!Number.isInteger(frames) || frames < 1 || frames > MAX_FRAMES)
           throw new Error(`invalid predicted frame length ${frames}`);
-        const latent = coreOutput.latent.data.subarray(
-          0,
-          LATENT_CHANNELS * frames,
-        );
+        // ONNX tensor storage is channel-major: trim every channel's time axis,
+        // rather than taking one contiguous prefix of the padded [1, 192, 4000] tensor.
+        const latent = new Float32Array(LATENT_CHANNELS * frames);
+        for (let channel = 0; channel < LATENT_CHANNELS; channel += 1) {
+          const sourceStart = channel * MAX_FRAMES;
+          latent.set(
+            coreOutput.latent.data.subarray(sourceStart, sourceStart + frames),
+            channel * frames,
+          );
+        }
         const waveform = (
           await decoder.run({
             latent: new ort.Tensor("float32", latent, [
@@ -166,7 +172,10 @@
         pieces.push(result);
         frames += result.frames;
       }
-      const waveform = concatenateChunks(pieces.map((piece) => piece.waveform), sourceChunks);
+      const waveform = concatenateChunks(
+        pieces.map((piece) => piece.waveform),
+        sourceChunks,
+      );
       let finite = true,
         min = Infinity,
         max = -Infinity,
