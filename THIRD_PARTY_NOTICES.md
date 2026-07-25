@@ -34,3 +34,18 @@ BigVGAN's alias-free design and was adapted for this compact runtime.
 The anti-aliased activation resampling design used by the compact waveform
 runtime includes concepts and adapted implementation structure from
 `alias-free-torch`.
+
+## ephone / eSpeak-NG WASM
+
+- Package: `ephone` 1.0.2 (`sjmik/ephone-js`)
+- License: GPL-3.0-or-later
+- Upstream source: <https://github.com/sjmik/ephone-js>
+- Packaged license: `third_party/EPHONE_COPYING.txt`
+- Pinned artifact SHA-256: `ephone.js`
+  `3953f66df632cdce59cb400e5552bec802a3b1333ac60aaf86f04365c103c00f`;
+  `lang/en-us.js`
+  `8bfbd0c6dd9ebca08217343f0b0723fd6e46fbaab1b03a57d168ac68a23a0d4d`.
+
+The browser frontend distributes this eSpeak-NG-derived WASM runtime and its
+English-US language data. The plugin distribution must comply with GPL-3.0-or-later,
+including corresponding-source availability for the shipped build.

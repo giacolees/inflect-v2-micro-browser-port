@@ -9,6 +9,7 @@
     "evaluate-permissive-g2p": "node scripts/evaluate_permissive_g2p.cjs"
   },
   "dependencies": {
+    "ephone": "1.0.2",
     "onnxruntime-web": "1.23.2",
     "playwright-core": "1.55.0"
   },

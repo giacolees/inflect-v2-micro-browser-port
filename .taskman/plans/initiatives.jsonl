@@ -1,1 +1,1 @@
-{"_type":"initiative","name":"inflect-browser-go","status":"done","title":"Inflect browser feasibility completion","created_at":"2026-07-25T12:55:21.699Z","completed_at":"2026-07-25T13:03:48.558Z"}
+{"_type":"initiative","name":"inflect-browser-go","status":"done","title":"Inflect browser feasibility completion","created_at":"2026-07-25T12:55:21.699Z","completed_at":"2026-07-25T13:19:14.234Z","reason":"User approved GPL-3.0-or-later plugin distribution, lifting the eSpeak-NG WASM licensing blocker."}
