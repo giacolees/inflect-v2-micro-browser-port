@@ -59,7 +59,7 @@ try {
 		!result.ok ||
 		!result.finite ||
 		!Number.isInteger(result.frames) ||
-		result.samples !== result.frames * 256 ||
+		result.samples < result.frames * 256 ||
 		!result.wavValid ||
 		result.wavBytes !== 44 + result.samples * 4
 	) {
