@@ -57,6 +57,7 @@
   } from "/browser/frontend.mjs";
   import {
     concatenateChunks,
+    expandPrior,
     encodeFloat32Wav,
     seededNormalNoise,
   } from "/browser/runtime.mjs";
@@ -74,8 +75,11 @@
         return response.arrayBuffer();
       };
       phase = "creating-sessions";
-      const [core, decoder] = await Promise.all([
-        fetchModel("/browser/inflect-core.onnx").then((model) =>
+      const [encoderDuration, flow, decoder] = await Promise.all([
+        fetchModel("/browser/inflect-encoder-duration.onnx").then((model) =>
+          ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
+        ),
+        fetchModel("/browser/inflect-flow.onnx").then((model) =>
           ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
         ),
         fetchModel("/browser/inflect-decoder.onnx").then((model) =>
@@ -125,34 +129,41 @@
         output.ids.forEach((id, index) => {
           paddedTokens[index] = BigInt(id);
         });
-        const coreOutput = await core.run({
+        const encoderOutput = await encoderDuration.run({
           tokens: new ort.Tensor("int64", paddedTokens, [1, MAX_TOKENS]),
           lengths: new ort.Tensor(
             "int64",
             BigInt64Array.of(BigInt(output.ids.length)),
             [1],
           ),
-          latent_noise: new ort.Tensor(
-            "float32",
-            params.has("zeroNoise")
-              ? new Float32Array(LATENT_CHANNELS * MAX_FRAMES)
-              : seededNormalNoise(seed, LATENT_CHANNELS, MAX_FRAMES),
-            [1, LATENT_CHANNELS, MAX_FRAMES],
-          ),
         });
-        const frames = Number(coreOutput.frame_lengths.data[0]);
+        const durations = encoderOutput.durations.data;
+        const frames = durations.reduce(
+          (sum, duration) => sum + Math.round(duration),
+          0,
+        );
         if (!Number.isInteger(frames) || frames < 1 || frames > MAX_FRAMES)
           throw new Error(`invalid predicted frame length ${frames}`);
-        // ONNX tensor storage is channel-major: trim every channel's time axis,
-        // rather than taking one contiguous prefix of the padded [1, 192, 4000] tensor.
-        const latent = new Float32Array(LATENT_CHANNELS * frames);
-        for (let channel = 0; channel < LATENT_CHANNELS; channel += 1) {
-          const sourceStart = channel * MAX_FRAMES;
-          latent.set(
-            coreOutput.latent.data.subarray(sourceStart, sourceStart + frames),
-            channel * frames,
-          );
-        }
+        const noise = params.has("zeroNoise")
+          ? new Float32Array(LATENT_CHANNELS * frames)
+          : seededNormalNoise(seed, LATENT_CHANNELS, frames);
+        const prior = expandPrior(
+          encoderOutput.means.data,
+          encoderOutput.log_scales.data,
+          durations,
+          noise,
+          LATENT_CHANNELS,
+        );
+        const latent = (
+          await flow.run({
+            prior: new ort.Tensor("float32", prior, [1, LATENT_CHANNELS, frames]),
+            y_mask: new ort.Tensor(
+              "float32",
+              new Float32Array(frames).fill(1),
+              [1, 1, frames],
+            ),
+          })
+        ).latent.data;
         const waveform = (
           await decoder.run({
             latent: new ort.Tensor("float32", latent, [

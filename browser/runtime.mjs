@@ -25,6 +25,25 @@ export function seededNormalNoise(seed, channels, frames) {
 	return output;
 }
 
+export function expandPrior(means, logScales, durations, noise, channels) {
+	const frames = durations.reduce((sum, duration) => sum + Math.round(duration), 0);
+	const prior = new Float32Array(channels * frames);
+	for (let channel = 0; channel < channels; channel += 1) {
+		let frame = 0;
+		for (let token = 0; token < durations.length; token += 1) {
+			const duration = Math.round(durations[token]);
+			const mean = means[channel * durations.length + token];
+			const logScale = logScales[channel * durations.length + token];
+			for (let repeat = 0; repeat < duration; repeat += 1) {
+				prior[channel * frames + frame] =
+					mean + noise[channel * frames + frame] * Math.exp(logScale);
+				frame += 1;
+			}
+		}
+	}
+	return prior;
+}
+
 export function boundaryPauseSeconds(chunk) {
 	return (
 		{ "?": 0.28, "!": 0.24, ".": 0.22, ";": 0.16, ":": 0.13, ",": 0.09 }[
