@@ -6,6 +6,7 @@
   "scripts": {
     "verify-browser-port": "node scripts/verify.mjs",
     "browser-proof": "node scripts/browser_proof.mjs",
+    "benchmark-browser": "node scripts/benchmark_browser.mjs",
     "dev": "node scripts/dev_server.mjs",
     "evaluate-permissive-g2p": "node scripts/evaluate_permissive_g2p.cjs"
   },
