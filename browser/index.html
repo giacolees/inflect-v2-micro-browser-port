@@ -33,10 +33,14 @@
       const frontend = await createInflectFrontend();
       if (new URLSearchParams(location.search).has("parity")) {
         const [fixture, prompts] = await Promise.all([
-          fetch("/fixtures/vits-frontend-fixture.json").then((response) => response.json()),
+          fetch("/fixtures/vits-frontend-fixture.json").then((response) =>
+            response.json(),
+          ),
           fetch("/fixtures/prompts.json").then((response) => response.json()),
         ]);
-        const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt.text]));
+        const promptById = new Map(
+          prompts.map((prompt) => [prompt.id, prompt.text]),
+        );
         const cases = fixture.map((expected) => {
           const actual = frontend.phonemize(promptById.get(expected.id));
           const mismatch = actual.ids.findIndex(
@@ -61,7 +65,9 @@
         });
         return;
       }
-      const inputText = new URLSearchParams(location.search).get("text") ?? "The quick brown fox jumps over the lazy dog.";
+      const inputText =
+        new URLSearchParams(location.search).get("text") ??
+        "The quick brown fox jumps over the lazy dog.";
       const frontendOutput = frontend.phonemize(inputText);
       const tokenValues = frontendOutput.ids;
       if (tokenValues.length > MAX_TOKENS) {
@@ -113,7 +119,11 @@
       }
       const wav = encodeFloat32Wav(waveform);
       const wavView = new DataView(wav);
-      const wavValid = wavView.getUint32(0, false) === 0x52494646 && wavView.getUint32(8, false) === 0x57415645 && wavView.getUint32(24, true) === 24000 && wavView.getUint16(22, true) === 1;
+      const wavValid =
+        wavView.getUint32(0, false) === 0x52494646 &&
+        wavView.getUint32(8, false) === 0x57415645 &&
+        wavView.getUint32(24, true) === 24000 &&
+        wavView.getUint16(22, true) === 1;
       document.body.textContent = JSON.stringify({
         ok: true,
         normalizedText: frontendOutput.normalizedText,

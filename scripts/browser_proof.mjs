@@ -47,7 +47,9 @@ try {
 	page.on("pageerror", (error) =>
 		console.error(`BROWSER_PAGE_ERROR ${error.stack}`),
 	);
-	const query = process.env.TEXT ? `?text=${encodeURIComponent(process.env.TEXT)}` : "";
+	const query = process.env.TEXT
+		? `?text=${encodeURIComponent(process.env.TEXT)}`
+		: "";
 	await page.goto(`http://127.0.0.1:${port}/browser/index.html${query}`, {
 		waitUntil: "networkidle",
 		timeout: 120000,
