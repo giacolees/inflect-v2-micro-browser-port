@@ -36,8 +36,11 @@ class PaddedSynthesisCore(torch.nn.Module):
         log_durations = self.model.dp(x, x_mask)
         durations = torch.ceil(torch.exp(log_durations) * x_mask)
         frame_lengths = torch.clamp_min(torch.sum(durations, [1, 2]), 1).long()
+        # Keep the public noise input at the maximum capacity, but slice it to
+        # the predicted duration before alignment and flow computation.
+        trimmed_noise = latent_noise[:, :, : frame_lengths[0]]
         y_mask = torch.unsqueeze(
-            commons.sequence_mask(frame_lengths, MAX_FRAMES), 1
+            commons.sequence_mask(frame_lengths, trimmed_noise.size(2)), 1
         ).to(x_mask.dtype)
         alignment = commons.generate_path(
             durations, torch.unsqueeze(x_mask, 2) * torch.unsqueeze(y_mask, -1)
@@ -46,7 +49,7 @@ class PaddedSynthesisCore(torch.nn.Module):
         log_scales = torch.matmul(
             alignment.squeeze(1), log_scales.transpose(1, 2)
         ).transpose(1, 2)
-        z_prior = means + latent_noise * torch.exp(log_scales)
+        z_prior = means + trimmed_noise * torch.exp(log_scales)
         z = self.model.flow(z_prior, y_mask, reverse=True)
         return z, frame_lengths
 
@@ -65,17 +68,6 @@ class EncoderDuration(torch.nn.Module):
         log_durations = self.model.dp(hidden, x_mask)
         durations = torch.ceil(torch.exp(log_durations) * x_mask)
         return hidden, means, log_scales, x_mask, durations
-
-
-class DynamicFlow(torch.nn.Module):
-    """Apply the residual flow to a duration-trimmed latent prior."""
-
-    def __init__(self, model: SynthesizerTrn):
-        super().__init__()
-        self.flow = model.flow
-
-    def forward(self, prior: torch.Tensor, y_mask: torch.Tensor) -> torch.Tensor:
-        return self.flow(prior, y_mask, reverse=True)
 
 
 class DynamicDecoder(torch.nn.Module):
@@ -108,7 +100,6 @@ def main() -> None:
     model = load_model()
     core = PaddedSynthesisCore(model).eval()
     encoder_duration = EncoderDuration(model).eval()
-    flow = DynamicFlow(model).eval()
     decoder = DynamicDecoder(model).eval()
     tokens = torch.zeros((1, MAX_TOKENS), dtype=torch.int64)
     lengths = torch.tensor([4], dtype=torch.int64)
@@ -123,6 +114,7 @@ def main() -> None:
         opset_version=18,
         input_names=["tokens", "lengths", "latent_noise"],
         output_names=["latent", "frame_lengths"],
+        dynamic_axes={"latent": {2: "frames"}},
         dynamo=False,
     )
     torch.onnx.export(
@@ -135,23 +127,6 @@ def main() -> None:
         dynamo=False,
     )
     torch.onnx.export(
-        flow,
-        (
-            torch.zeros((1, LATENT_CHANNELS, 16), dtype=torch.float32),
-            torch.ones((1, 1, 16), dtype=torch.float32),
-        ),
-        output / "inflect-flow.onnx",
-        opset_version=18,
-        input_names=["prior", "y_mask"],
-        output_names=["latent"],
-        dynamic_axes={
-            "prior": {2: "frames"},
-            "y_mask": {2: "frames"},
-            "latent": {2: "frames"},
-        },
-        dynamo=False,
-    )
-    torch.onnx.export(
         decoder,
         (torch.zeros((1, LATENT_CHANNELS, 16), dtype=torch.float32),),
         output / "inflect-decoder.onnx",
@@ -161,7 +136,7 @@ def main() -> None:
         dynamic_axes={"latent": {2: "frames"}, "waveform": {2: "samples"}},
         dynamo=False,
     )
-    print(f"ONNX_EXPORT_OK core={output / 'inflect-core.onnx'} encoder_duration={output / 'inflect-encoder-duration.onnx'} flow={output / 'inflect-flow.onnx'} decoder={output / 'inflect-decoder.onnx'}")
+    print(f"ONNX_EXPORT_OK core={output / 'inflect-core.onnx'} encoder_duration={output / 'inflect-encoder-duration.onnx'} decoder={output / 'inflect-decoder.onnx'}")
 
 
 if __name__ == "__main__":
