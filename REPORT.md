@@ -1,63 +1,35 @@
-# Inflect Micro v2 browser-port feasibility report
+# Feasibility report
 
-## Decision: **NO-GO**
+## Decision: conditional **NO-GO**
 
-Do not integrate Inflect Micro v2 into the Obsidian plugin yet. The legacy single graph was replaced with a padded, fixed-width core and a duration-trimmed dynamic decoder. Both execute in actual Chromium through ONNX Runtime Web/WASM for four- and eight-token smoke inputs, and the padded Python core agrees with the unpadded reference to a maximum waveform error of `5.05e-08`. The GPL-approved eSpeak-NG WASM frontend now matches all six corpus cases for normalized text, phoneme strings, and blank-interspersed IDs. Remaining acceptance gates are end-to-end seeded corpus synthesis, WAV playback/offline cache, renderer measurements, numerical audio parity, and listening evidence.
+The renderer-only technical path is feasible: eSpeak-compatible WASM phonemization, ONNX Runtime Web/WASM inference, WAV generation, chunk streaming, and an Obsidian Electron smoke run all work locally. This repository is **not** yet a production-ready Obsidian plugin. Do not claim listening quality, full Python behavioral equivalence, or offline plugin readiness.
 
-## Reproducibility
+## What is verified
 
-| Item | Value |
-| --- | --- |
-| Upstream | `owensong/Inflect-Micro-v2` tag `v2.0.0`, commit `9598ed6d37166d05df6260322012f6938ffe9141` (annotated tag object `ff40219f68ccacb8fba4a24fa77ccb53614bf107`) |
-| Weights | `model.pth`, 37,529,995 bytes, SHA-256 `3eede065c9ccfa88ade0a5a9a5c23de34afcbbb32213e59aad44d5cf100fdee8` |
-| Host | macOS 26.3 (25D125), MacBookPro18,3, Apple M1 Pro, 16 GB |
-| Python / PyTorch | CPython 3.11 / torch 2.10.0 |
-| ONNX / ORT diagnostic | onnx 1.19.1 / onnxruntime 1.23.2 |
-| Renderer | Google Chrome 150.0.7871.184 headless via Playwright Core 1.55.0 |
-| Browser runtime | `onnxruntime-web` 1.23.2, `wasm` execution provider, one thread |
-| Export | `PYTHONPATH=source:source/runtime .venv/bin/python scripts/export_onnx.py`; legacy `torch.onnx.export`, opset 18 |
+- `ephone@1.0.2` browser frontend matches all six corpus fixtures for normalized text, phonemes, and blank-interspersed IDs.
+- Fixed-width ONNX core (`[1,512]` IDs, `[1,192,4000]` latent noise) and dynamic decoder execute in Chromium ORT-Web/WASM.
+- Padded Python core agrees with the unpadded reference for the recorded zero-noise case: latent max error `1.91e-06`, waveform max error `5.05e-08`.
+- Native ORT and Chromium ORT-Web agree with identical frontend IDs and explicit zero noise: 68,096 samples, latent max error `3.34e-06`, waveform max error `1.19e-04`, RMSE `1.99e-06`, correlation `0.9999999995`.
+- Completed chunks stream through Web Audio while later chunks synthesize. In the recorded Obsidian test, five chunks/361,600 samples produced first audio at `3.04 s` and completed at `11.54 s`.
+- Obsidian `1.8.10` / Electron `34.2.0` completed the one-chunk renderer smoke test using ORT-Web/WASM. The renderer exposes Node `process`; the harness temporarily hides it while creating ORT sessions so ORT does not select an unavailable Node worker backend.
+- Warm CPU comparison for the simple prompt: Python/PyTorch median `1082 ms`; native ONNX median `327 ms`. This is not a browser-performance claim.
 
-All large inputs and generated artifacts are ignored. `README.md` documents their local-cache locations and checksum. `npm run verify-browser-port` is the one-command evidence check once those assets are present.
+## Deliberate browser-port differences
 
-## Architecture and deterministic export
+The browser path is not a drop-in implementation of `source/inference.py`. It uses eSpeak WASM rather than native eSpeak, a padded ONNX core plus separate decoder, JS seeded noise rather than PyTorch RNG, no public speed/variation controls, and Web Audio chunk scheduling. The only cross-runtime waveform claim is for explicit zero noise. See [docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md).
 
-The upstream public API normalizes text, eSpeak-NG phonemizes it, maps symbols to IDs, inserts blank ID `0`, predicts durations, expands the prior, samples a 192-channel latent, reverses a four-flow residual coupling block, then invokes a HiFi-GAN/VITS-family decoder. The model is one fixed English male voice and emits 24,000 Hz mono float32.
+## Reproducibility and provenance
 
-`scripts/export_onnx.py` now exports two graphs:
+- Upstream: `owensong/Inflect-Micro-v2` `v2.0.0`, commit `9598ed6d37166d05df6260322012f6938ffe9141`.
+- Weights: `model.pth`, SHA-256 `3eede065c9ccfa88ade0a5a9a5c23de34afcbbb32213e59aad44d5cf100fdee8`.
+- Export: `PYTHONPATH=source:source/runtime .venv/bin/python scripts/export_onnx.py`, legacy TorchScript exporter, opset 18.
+- Browser runtime: `onnxruntime-web@1.23.2`, WASM execution provider, one thread.
 
-| Graph | Input/output | Type and shape |
-| --- | --- | --- |
-| Core | `tokens` | `int64`, fixed `[1, 512]`, zero-padded |
-| Core | `lengths` | `int64`, `[1]` actual non-padding count |
-| Core | `latent_noise` | `float32`, `[1, 192, 4000]` |
-| Core | `latent`, `frame_lengths` | `float32 [1,192,4000]`, `int64 [1]` |
-| Decoder | `latent` | `float32`, `[1,192,frames]` |
-| Decoder | `waveform` | `float32`, `[1,1,frames*256]` |
+Large assets are intentionally ignored. The exact asset layout and verification commands are in [README.md](README.md); evidence details are in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-The maximum frame length is explicit (`4000`), as is the latent noise input. This removes runtime-hidden random sampling; a caller can generate a seeded normal tensor outside the graph. Speed is fixed at 1.0 and variation is represented by the scale of `latent_noise`. Fixing the core token window to 512 prevents legacy tracing from capturing a particular attention reshape; `lengths` and masks exclude zero padding. Browser code reads `frame_lengths`, slices the latent prefix, then invokes the dynamic decoder, so it does not generate the former 1,024,000-sample tail. Both graphs pass `onnx.checker`; machine-readable metadata is `fixtures/onnx-metadata.json`.
+## Required for GO
 
-## Frontend and licensing
-
-The source frontend is `source/inflect_nano_v2_frontend.py`: regex/`num2words` normalization followed by `phonemizer`'s `EspeakBackend` and native eSpeak-NG library/data. The corpus in `fixtures/prompts.json` covers prose, punctuation, numbers, abbreviations, non-ASCII names, and long text. Python frontend records and corresponding ID vectors are retained in `fixtures/python-baseline-metadata.json` and `fixtures/python-token-ids.json`.
-
-The browser frontend is implemented in `browser/frontend.mjs` using GPL-3.0-or-later `ephone` 1.0.2, an eSpeak-NG WASM build pinned in `package.json`. It ports the normalization required by the corpus, restores punctuation that ephone renders as commas, maps every phoneme character into the Inflect symbol IDs, inserts blank ID `0`, and splits source text using the upstream 280-character policy before enforcing the 512-ID core limit. `node scripts/frontend_parity.mjs` runs actual Chromium and passes all six corpus cases for normalized text, phoneme string, and IDs. GPL source/provenance/hash requirements are recorded in `THIRD_PARTY_NOTICES.md` and `third_party/EPHONE_COPYING.txt`.
-
-## Python baseline and audio checks
-
-With fixed seed `0` and variation `0.667`, Python generated six deterministic baseline WAVs. They validate as finite mono 24 kHz data; all peaks are within `[-1, 1]`. Sample counts range from 68,096 (simple prose) to 439,104 (long text); details are in `fixtures/wav-validation.json`. Generated WAVs are local artifacts, not committed blobs.
-
-The padded-core implementation was checked against the equivalent unpadded PyTorch calculation for an eight-token, zero-noise case: retained latent maximum error is `1.91e-06` and waveform maximum error is `5.05e-08`. Native ORT executes both four- and eight-token padded inputs, producing 4,352 and 7,424 samples respectively. The browser now uses documented mulberry32 plus Box-Muller seeded normal noise (seed `0` in the proof) and encodes finite output as RIFF/WAVE float32, 24 kHz, mono; its header and byte length are validated. Native-ORT versus Chromium with identical simple-prompt IDs and explicit zero noise now passes: 68,096 samples, latent maximum error `3.34e-06`, waveform maximum error `1.19e-04`, waveform RMSE `1.99e-06`, and correlation `0.9999999995`. The prior failure was a browser tensor-layout bug: taking a contiguous prefix of padded `[1, 192, 4000]` latent storage incorrectly retained only the first channel's frames. Each channel is now trimmed independently before passing `[1, 192, frames]` to the decoder. Evidence is `fixtures/browser-native-zero-noise-comparison.json`. No manual listening conclusion is available.
-
-## Actual Chromium ORT Web/WASM result
-
-`browser/index.html` loads the local core and decoder ONNX assets and invokes only `onnxruntime-web` WASM. `scripts/browser_proof.mjs` serves them with cross-origin isolation and launches the installed Chrome binary; it does not use Node ORT, a server inference path, CDN inference, or a remote TTS call.
-
-Chrome executes the eight-token padded smoke case: core and decoder model setup plus inference took about 1.06 seconds on the stated host, predicted 29 frames, and returned a finite 7,424-sample waveform. It also executes frontend-generated IDs for the simple corpus prompt: 107 IDs, 266 frames, and 68,096 finite samples. A cold-browser corpus pass (`scripts/corpus_browser.mjs`) completed the five single-chunk cases with finite, valid WAV buffers; elapsed setup+synthesis ranged from about 2.57 to 4.89 seconds, and per-case results are in `fixtures/browser-corpus-results.json`. The long prompt was deliberately not reported as passed: chunk concatenation/pause/fade runtime is not yet implemented. This is actual Chromium ORT Web/WASM evidence for the two-graph path. `npm run verify-browser-port` validates both graphs, native four/eight-token runs, padding parity, WAVs, the Chromium frontend parity fixture, and the Chromium synthesis smoke run; it still prints `GO_NO_GO_SUMMARY NO-GO` because long-text, offline cache, warm/memory, and end-to-end audio evidence remain unresolved.
-
-## Permissive frontend alternative
-
-The GPL-3.0-or-later license of eSpeak-NG originally blocked the browser frontend under the Apache-compatible constraint. The user explicitly approved GPL-3.0-or-later distribution for this plugin, so ephone/eSpeak-NG WASM is now the chosen frontend. A permissive-alternative audit remains documented for comparison: MIT `phonemize` 2.0.0 achieved **0/6 exact phoneme matches** and only **4.9%–9.4% character-position agreement** across the corpus. Its output is retained in `fixtures/permissive-g2p-evaluation.json` and is not used by the model.
-
-## Caveats and required next work
-
-The trace-captured-attention, untrimmed-decoder, browser frontend parity, seeded-noise generation, and basic WAV encoding issues are resolved in this feasibility harness. The result remains **NO-GO**: long-text chunk synthesis/pauses/fades, durable local cache plus network-disabled replay, warm timing and peak renderer memory, shared-noise Python/browser numerical comparison, and manual listening evidence are still absent. The plugin must be distributed GPL-3.0-or-later-compatible with ephone/eSpeak corresponding-source and notices. Do not use a Python sidecar, native ORT, or substitute model as a workaround under this decision.
+1. Package all model/WASM/frontend assets inside a real plugin and prove network-disabled restart/replay.
+2. Complete listening review for short, non-ASCII, punctuation-heavy, and long streamed text.
+3. Define acceptance targets for latency, memory, cancellation, and supported Obsidian/Electron versions.
+4. Preserve GPL-3.0-or-later compatibility, ephone/eSpeak notices, and corresponding-source/provenance obligations in any distribution.
