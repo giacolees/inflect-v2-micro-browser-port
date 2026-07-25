@@ -2,7 +2,7 @@
 
 ## Decision: **NO-GO**
 
-Do not integrate Inflect Micro v2 into the Obsidian plugin yet. The legacy single graph was replaced with a padded, fixed-width core and a duration-trimmed dynamic decoder. Both execute in actual Chromium through ONNX Runtime Web/WASM for four- and eight-token smoke inputs, and the padded Python core agrees with the unpadded reference to a maximum waveform error of `5.05e-08`. The exact upstream frontend still relies on Python plus native eSpeak-NG and has no validated browser-equivalent, which fails the acceptance gates.
+Do not integrate Inflect Micro v2 into the Obsidian plugin yet. The legacy single graph was replaced with a padded, fixed-width core and a duration-trimmed dynamic decoder. Both execute in actual Chromium through ONNX Runtime Web/WASM for four- and eight-token smoke inputs, and the padded Python core agrees with the unpadded reference to a maximum waveform error of `5.05e-08`. The GPL-approved eSpeak-NG WASM frontend now matches all six corpus cases for normalized text, phoneme strings, and blank-interspersed IDs. Remaining acceptance gates are end-to-end seeded corpus synthesis, WAV playback/offline cache, renderer measurements, numerical audio parity, and listening evidence.
 
 ## Reproducibility
 
@@ -52,7 +52,7 @@ The padded-core implementation was checked against the equivalent unpadded PyTor
 
 `browser/index.html` loads the local core and decoder ONNX assets and invokes only `onnxruntime-web` WASM. `scripts/browser_proof.mjs` serves them with cross-origin isolation and launches the installed Chrome binary; it does not use Node ORT, a server inference path, CDN inference, or a remote TTS call.
 
-Chrome executes the eight-token padded smoke case: core and decoder model setup plus inference took about 1.06 seconds on the stated host, predicted 29 frames, and returned a finite 7,424-sample waveform. This is actual Chromium ORT Web/WASM evidence for the two-graph path. `npm run verify-browser-port` validates both graphs, native four/eight-token runs, padding parity, WAVs, and the Chromium smoke run; it still prints `GO_NO_GO_SUMMARY NO-GO` only because browser frontend parity and production corpus/audio evidence remain unresolved.
+Chrome executes the eight-token padded smoke case: core and decoder model setup plus inference took about 1.06 seconds on the stated host, predicted 29 frames, and returned a finite 7,424-sample waveform. It also executes frontend-generated IDs for the simple corpus prompt: 107 IDs, 266 frames, and 68,096 finite samples. This is actual Chromium ORT Web/WASM evidence for the two-graph path. `npm run verify-browser-port` validates both graphs, native four/eight-token runs, padding parity, WAVs, the Chromium frontend parity fixture, and the Chromium synthesis smoke run; it still prints `GO_NO_GO_SUMMARY NO-GO` only because end-to-end corpus audio evidence remains unresolved.
 
 ## Permissive frontend alternative
 

@@ -12,16 +12,15 @@ try {
 	process.stdout.write(run(python, ["scripts/validate_wav.py"]));
 	process.stdout.write(run(python, ["scripts/test_ort_native.py"]));
 	process.stdout.write(run(python, ["scripts/test_padding_parity.py"]));
+	process.stdout.write(run("node", ["scripts/frontend_parity.mjs"]));
 	const browserOutput = run("node", ["scripts/browser_proof.mjs"]);
 	if (!browserOutput.includes("CHROMIUM_ORT_WEB_OK")) {
 		throw new Error(`browser proof did not report success\n${browserOutput}`);
 	}
 	process.stdout.write(browserOutput);
+	console.log("FRONTEND_PARITY_OK ephone/eSpeak-NG WASM matches the six-case frontend fixture");
 	console.log(
-		"FRONTEND_PARITY_BLOCKED exact eSpeak-NG frontend is Python/native only; no browser-equivalent was validated",
-	);
-	console.log(
-		"GO_NO_GO_SUMMARY NO-GO: padded core and dynamic decoder run in ORT Web/WASM, but browser frontend parity remains unsolved; do not integrate into Obsidian.",
+		"GO_NO_GO_SUMMARY NO-GO: frontend and ORT-Web synthesis pass, but seeded corpus audio, WAV/playback, offline cache, renderer measurements, and listening evidence remain unsolved; do not integrate into Obsidian.",
 	);
 } catch (error) {
 	console.error(error.stack ?? error);
