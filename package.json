@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "verify-browser-port": "node scripts/verify.mjs",
-    "browser-proof": "node scripts/browser_proof.mjs"
+    "browser-proof": "node scripts/browser_proof.mjs",
+    "evaluate-permissive-g2p": "node scripts/evaluate_permissive_g2p.cjs"
   },
   "dependencies": {
     "onnxruntime-web": "1.23.2",
     "playwright-core": "1.55.0"
+  },
+  "devDependencies": {
+    "phonemize": "2.0.0"
   }
 }

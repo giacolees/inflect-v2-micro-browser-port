@@ -1,0 +1,73 @@
+[
+  {
+    "id": "simple",
+    "expected": "ðə kwˈɪk bɹˈaʊn fˈɑːks dʒˈʌmps ˌoʊvɚ ðə lˈeɪzi dˈɑːɡ.",
+    "actual": "ðə kwɪk bɹaʊn fɑks dʒʌmps ˈoʊvɝ ðə ˈɫeɪzi dɑɡ.",
+    "exact": false,
+    "prefix_character_match_rate": 0.09433962264150944,
+    "characters_absent_from_reference": [
+      "ɝ",
+      "ɫ"
+    ]
+  },
+  {
+    "id": "punctuation",
+    "expected": "fˈɜːst, klˈoʊs ðə wˈɪndoʊ; sˈɛkənd, tˈɜːn ˈɔf ðə lˈæmp; fˈaɪnəli, lˈɑːk ðə dˈɔːɹ!",
+    "actual": "fɝst, kɫoʊz ðə ˈwɪndoʊ; ˈsɛkənd, tɝn ɑf ðə ɫæmp; ˈfaɪnəɫi, ɫɑk ðə dɔɹ!",
+    "exact": false,
+    "prefix_character_match_rate": 0.04938271604938271,
+    "characters_absent_from_reference": [
+      "ɝ",
+      "ɫ",
+      "z"
+    ]
+  },
+  {
+    "id": "numbers",
+    "expected": "dˈɑːktɚ tʃˈɛn pˈeɪd twˈɛlv dˈɑːlɚz ænd fˈɪfti sˈɛnts ˌɔn dʒuːlˈaɪ twˈɛnti fˈɜːst tˈuː θˈaʊzənd ænd twˈɛnti fˈaɪv æɾ ˈeɪt ˈoʊ fˈaɪv pˈiː ˈɛm.",
+    "actual": "ˈdɑktɝ tʃɛn peɪd twɛɫv ˈdɑɫɑɹz ənd ˈfɪfti sɛnts ɑn ˌdʒuˈɫaɪ ˈtwɛnti fɝst tu ˈθaʊzən ənd ˈtwɛnti faɪv ət eɪt oʊ faɪv ˈp ˈm.",
+    "exact": false,
+    "prefix_character_match_rate": 0.05714285714285714,
+    "characters_absent_from_reference": [
+      "ɝ",
+      "ɫ",
+      "ɹ"
+    ]
+  },
+  {
+    "id": "abbreviations",
+    "expected": "ðə jˈuː ˈɛs ɐ vˈɜːsᵻz ˈiː juː ɹᵻpˈɔːɹt jˈuːsᵻz ˈɛs kjˈuː lˈaɪt vˈɜːʒən θɹˈiː pˈɔɪnt tˈuː pˈɔɪnt wˌʌn.",
+    "actual": "ðə ʌ ˈz ə ˈvɝsəs i ju ɹɪˈpɔɹt ˈjuzəz ɛs kju ɫaɪt ˈvɝʒən θɹi pɔɪnt tu pɔɪnt wʌn.",
+    "exact": false,
+    "prefix_character_match_rate": 0.0594059405940594,
+    "characters_absent_from_reference": [
+      "ɝ",
+      "ɫ"
+    ]
+  },
+  {
+    "id": "non_ascii",
+    "expected": "ɡwˈɛndəlˌɪn fˈoʊɾəɡɹˌæft ðə jˈuːkɐlˌɪptəs tɹˈiːz aʊtsˈaɪd ljuːbljˈɑːnə; hoʊsˈeɪ ɐɡɹˈiːd.",
+    "actual": "ˈɡwɛndəɫɪn ˈfoʊtəˌɡɹæft ðə ˌjukəˈɫɪptəs tɹeɪz ˈaʊtˌsaɪd ˈɫjubəɫjɑnə; dʒɑs é əˈɡɹid.",
+    "exact": false,
+    "prefix_character_match_rate": 0.09090909090909091,
+    "characters_absent_from_reference": [
+      "ɫ",
+      "ʒ",
+      "é"
+    ]
+  },
+  {
+    "id": "long",
+    "expected": "ðɪs ɪz ɐ dᵻlˈɪbɚɹətli lˈɔŋ sᵻlˈɛktᵻdnˈoʊt pˈæsɪdʒ. ɪt kəntˈeɪnz sˈɛvɹəl sˈɛntənsᵻz sˌoʊ ðætðə ɹˈɛfɹəns splˈɪɾɚ mˈʌst kɹiːˈeɪt ˌɪndᵻpˈɛndənt tʃˈʌŋks, pɹɪzˈɜːv pˌʌŋktʃuːˈeɪʃən pˈɔːzᵻz, ænd jˈuːs ɐ dɪtˌɜːmɪnˈɪstɪk sˈiːd fɔːɹ ˈiːtʃ tʃˈʌŋk. ðə pˈɜːpəs ɪz tə mˈɛʒɚ pɹˈæktɪkəl nˈoʊtlˈɛŋθ sˈɪnθəsˌɪs ɹˈæðɚ ðˌænə sˈɪŋɡəl ʃˈɔːɹt sˈɛntəns.",
+    "actual": "ðɪs ɪz ə dɪˈɫɪbɝətɫi ɫɑŋ səˈɫɛktɪd- noʊt ˈpæsədʒ. ɪt kənˈteɪnz ˈsɛvɝəɫ ˈsɛntənsəz soʊ ðət ðə ˈɹɛfɝəns ˈspɫɪtɝ məst kɹiˈeɪt ˌɪndɪˈpɛndənt tʃʌŋks, pɹəˈzɝv ˌpʌŋktʃuˈeɪʃən ˈpɔzəz, ənd juz ə dɪˌtɝməˈnɪstɪk sid fəɹ itʃ tʃʌŋk. ðə ˈpɝpəs ɪz tə ˈmɛʒɝ ˈpɹæktəkəɫ noʊt- ɫɛŋkθ ˈsɪnθəsəs ˈɹæðɝ ðən ə ˈsɪŋɡəɫ ʃɔɹt ˈsɛntəns.",
+    "exact": false,
+    "prefix_character_match_rate": 0.08841463414634146,
+    "characters_absent_from_reference": [
+      "ɫ",
+      "ɝ",
+      "ɑ",
+      "-"
+    ]
+  }
+]
