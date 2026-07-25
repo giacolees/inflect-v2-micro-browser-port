@@ -1,7 +1,10 @@
 <!doctype html><meta charset="utf-8" /><title>Inflect ORT Web proof</title>
 <script src="/node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
 <script type="module">
-  import { createInflectFrontend, MAX_TOKENS as FRONTEND_MAX_TOKENS } from "/browser/frontend.mjs";
+  import {
+    createInflectFrontend,
+    MAX_TOKENS as FRONTEND_MAX_TOKENS,
+  } from "/browser/frontend.mjs";
   (async () => {
     const MAX_TOKENS = FRONTEND_MAX_TOKENS;
     const MAX_FRAMES = 4000;
@@ -28,16 +31,35 @@
       phase = "running-frontend";
       const frontend = await createInflectFrontend();
       if (new URLSearchParams(location.search).has("parity")) {
-        const fixture = await fetch("/fixtures/vits-frontend-fixture.json").then((response) => response.json());
+        const fixture = await fetch(
+          "/fixtures/vits-frontend-fixture.json",
+        ).then((response) => response.json());
         const cases = fixture.map((expected) => {
           const actual = frontend.phonemize(expected.normalized_text);
-          const mismatch = actual.ids.findIndex((value, index) => value !== expected.ids[index]);
-          return { id: expected.id, normalized: actual.normalizedText === expected.normalized_text, phonemes: actual.phonemeText === expected.phoneme_text, ids: JSON.stringify(actual.ids) === JSON.stringify(expected.ids), mismatch, actualId: actual.ids[mismatch], expectedId: expected.ids[mismatch] };
+          const mismatch = actual.ids.findIndex(
+            (value, index) => value !== expected.ids[index],
+          );
+          return {
+            id: expected.id,
+            normalized: actual.normalizedText === expected.normalized_text,
+            phonemes: actual.phonemeText === expected.phoneme_text,
+            ids: JSON.stringify(actual.ids) === JSON.stringify(expected.ids),
+            mismatch,
+            actualId: actual.ids[mismatch],
+            expectedId: expected.ids[mismatch],
+          };
         });
-        document.body.textContent = JSON.stringify({ ok: cases.every((result) => result.normalized && result.phonemes && result.ids), cases });
+        document.body.textContent = JSON.stringify({
+          ok: cases.every(
+            (result) => result.normalized && result.phonemes && result.ids,
+          ),
+          cases,
+        });
         return;
       }
-      const frontendOutput = frontend.phonemize("The quick brown fox jumps over the lazy dog.");
+      const frontendOutput = frontend.phonemize(
+        "The quick brown fox jumps over the lazy dog.",
+      );
       const tokenValues = frontendOutput.ids;
       if (tokenValues.length > MAX_TOKENS) {
         throw new Error(`token limit exceeded: ${tokenValues.length}`);
