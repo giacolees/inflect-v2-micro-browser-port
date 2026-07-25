@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Inflect ORT Web proof</title><script src="/node_modules/onnxruntime-web/dist/ort.min.js"></script><script>
+(async () => {
+  const started = performance.now();
+  try {
+    ort.env.logLevel = 'verbose';
+    ort.env.wasm.wasmPaths = '/node_modules/onnxruntime-web/dist/';
+    ort.env.wasm.numThreads = 1;
+    const model = await fetch('/browser/inflect-synthesis.onnx').then(r => { if (!r.ok) throw new Error(`model HTTP ${r.status}`); return r.arrayBuffer(); });
+    const session = await ort.InferenceSession.create(model, {executionProviders:['wasm']});
+    const tokens = [0, 1, 2, 3, 4, 5, 6, 7]; // graph smoke input; Python frontend IDs are separately recorded.
+    const input = new ort.Tensor('int64', BigInt64Array.from(tokens, BigInt), [1, tokens.length]);
+    const length = new ort.Tensor('int64', BigInt64Array.from([BigInt(tokens.length)]), [1]);
+    const noise = new ort.Tensor('float32', new Float32Array(192 * 4000), [1, 192, 4000]);
+    const firstStart = performance.now();
+    const output = (await session.run({tokens: input, lengths: length, latent_noise: noise})).waveform;
+    const data = output.data;
+    const finite = data.every(Number.isFinite);
+    const min = Math.min(...data), max = Math.max(...data);
+    document.body.textContent = JSON.stringify({ok: true, loadMs: firstStart-started, synthesisMs: performance.now()-firstStart, samples:data.length, finite, min, max});
+  } catch (error) { document.body.textContent = JSON.stringify({ok:false, error:String(error), stack:error.stack}); }
+})();
+</script>

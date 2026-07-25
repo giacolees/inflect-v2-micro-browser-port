@@ -1,0 +1,44 @@
+[
+  {
+    "file": "abbreviations.wav",
+    "sample_rate": 24000,
+    "samples": 143168,
+    "min": -0.358856201171875,
+    "max": 0.53411865234375
+  },
+  {
+    "file": "long.wav",
+    "sample_rate": 24000,
+    "samples": 439104,
+    "min": -0.3800048828125,
+    "max": 0.54364013671875
+  },
+  {
+    "file": "non_ascii.wav",
+    "sample_rate": 24000,
+    "samples": 120064,
+    "min": -0.36199951171875,
+    "max": 0.4979248046875
+  },
+  {
+    "file": "numbers.wav",
+    "sample_rate": 24000,
+    "samples": 180384,
+    "min": -0.409423828125,
+    "max": 0.508392333984375
+  },
+  {
+    "file": "punctuation.wav",
+    "sample_rate": 24000,
+    "samples": 133888,
+    "min": -0.44781494140625,
+    "max": 0.520172119140625
+  },
+  {
+    "file": "simple.wav",
+    "sample_rate": 24000,
+    "samples": 68096,
+    "min": -0.3665771484375,
+    "max": 0.524261474609375
+  }
+]

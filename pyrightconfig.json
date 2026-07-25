@@ -1,0 +1,7 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": ["source", "source/runtime"],
+  "exclude": [".venv", "upstream", "artifacts"],
+  "reportMissingImports": "none"
+}

@@ -1,0 +1,50 @@
+{
+  "nodes": 2169,
+  "operators": {
+    "Add": 110,
+    "Cast": 37,
+    "Ceil": 1,
+    "Clip": 1,
+    "Concat": 67,
+    "Constant": 967,
+    "ConstantOfShape": 43,
+    "Conv": 136,
+    "ConvTranspose": 4,
+    "CumSum": 1,
+    "Div": 7,
+    "Equal": 1,
+    "Exp": 6,
+    "Gather": 44,
+    "LayerNormalization": 8,
+    "LeakyRelu": 69,
+    "Less": 3,
+    "MatMul": 14,
+    "Mul": 88,
+    "Neg": 4,
+    "Pad": 19,
+    "Pow": 3,
+    "Range": 2,
+    "ReduceSum": 1,
+    "Relu": 5,
+    "Reshape": 64,
+    "Shape": 67,
+    "Sigmoid": 16,
+    "Slice": 144,
+    "Softmax": 3,
+    "Split": 5,
+    "Squeeze": 1,
+    "Sub": 29,
+    "Tanh": 17,
+    "Transpose": 53,
+    "Unsqueeze": 126,
+    "Where": 3
+  },
+  "inputs": [
+    "tokens",
+    "lengths",
+    "latent_noise"
+  ],
+  "outputs": [
+    "waveform"
+  ]
+}

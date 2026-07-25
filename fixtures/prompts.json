@@ -1,0 +1,8 @@
+[
+  {"id":"simple","text":"The quick brown fox jumps over the lazy dog."},
+  {"id":"punctuation","text":"First, close the window; second, turn off the lamp; finally, lock the door!"},
+  {"id":"numbers","text":"Dr. Chen paid $12.50 on 07/21/2025 at 8:05 p.m."},
+  {"id":"abbreviations","text":"The U.S.A. vs. EU report uses SQLite version 3.2.1."},
+  {"id":"non_ascii","text":"Gwendolyn photographed the eucalyptus trees outside Ljubljana; José agreed."},
+  {"id":"long","text":"This is a deliberately long selected-note passage. It contains several sentences so that the reference splitter must create independent chunks, preserve punctuation pauses, and use a deterministic seed for each chunk. The purpose is to measure practical note-length synthesis rather than a single short sentence."}
+]

@@ -1,0 +1,13 @@
+.venv/
+node_modules/
+upstream/
+artifacts/*
+!artifacts/.gitkeep
+source/model.pth
+artifacts/inflect-synthesis.onnx
+browser/inflect-synthesis.onnx
+artifacts/python-baseline/*.wav
+artifacts/browser-*.log
+__pycache__/
+*.pyc
+.DS_Store
