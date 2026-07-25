@@ -156,7 +156,11 @@
         );
         const latent = (
           await flow.run({
-            prior: new ort.Tensor("float32", prior, [1, LATENT_CHANNELS, frames]),
+            prior: new ort.Tensor("float32", prior, [
+              1,
+              LATENT_CHANNELS,
+              frames,
+            ]),
             y_mask: new ort.Tensor(
               "float32",
               new Float32Array(frames).fill(1),

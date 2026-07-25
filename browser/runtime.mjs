@@ -26,7 +26,10 @@ export function seededNormalNoise(seed, channels, frames) {
 }
 
 export function expandPrior(means, logScales, durations, noise, channels) {
-	const frames = durations.reduce((sum, duration) => sum + Math.round(duration), 0);
+	const frames = durations.reduce(
+		(sum, duration) => sum + Math.round(duration),
+		0,
+	);
 	const prior = new Float32Array(channels * frames);
 	for (let channel = 0; channel < channels; channel += 1) {
 		let frame = 0;
