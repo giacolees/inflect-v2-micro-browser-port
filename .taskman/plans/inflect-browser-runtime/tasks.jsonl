@@ -1,4 +1,0 @@
-{"_type":"meta","title":"Build browser synthesis and offline runtime","plan_name":"inflect-browser-runtime","created_at":"2026-07-25T12:55:33.258Z","base_commit":"0dfd032a7177dd6ec67cc21388d5d38f2cc6644a"}
-{"_type":"task","id":"t-001","description":"Implement seeded browser two-graph synthesis","details":"","status":"pending","created_at":"2026-07-25T12:55:33.258Z","updated_at":"2026-07-25T12:55:33.258Z"}
-{"_type":"task","id":"t-002","description":"Add WAV playback, cache, and offline checks","details":"","status":"pending","created_at":"2026-07-25T12:55:33.258Z","updated_at":"2026-07-25T12:55:33.258Z"}
-{"_type":"task","id":"t-003","description":"Measure Chromium renderer performance and memory","details":"","status":"pending","created_at":"2026-07-25T12:55:33.258Z","updated_at":"2026-07-25T12:55:33.258Z"}

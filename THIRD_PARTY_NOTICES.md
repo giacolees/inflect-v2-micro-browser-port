@@ -47,5 +47,5 @@ runtime includes concepts and adapted implementation structure from
   `8bfbd0c6dd9ebca08217343f0b0723fd6e46fbaab1b03a57d168ac68a23a0d4d`.
 
 The browser frontend distributes this eSpeak-NG-derived WASM runtime and its
-English-US language data. The plugin distribution must comply with GPL-3.0-or-later,
+English-US language data. Any downstream distribution must comply with GPL-3.0-or-later,
 including corresponding-source availability for the shipped build.

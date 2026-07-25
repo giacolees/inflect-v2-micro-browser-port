@@ -11,7 +11,7 @@ This harness is not a byte-for-byte API port of `source/inference.py`. It preser
 | Speed/variation controls | `speed`, `variation`, and duration-noise controls | No public browser control surface; fixed speed and seeded latent noise | Do not assume Python `synthesize(..., variation=0.667)` matches browser audio. |
 | Long text | Python creates all chunks then concatenates a waveform | Browser synthesizes sequential chunks and schedules each completed chunk via Web Audio | First audio can begin before total synthesis completes; final WAV is still assembled after all chunks. |
 | Runtime | Native Python/PyTorch | `onnxruntime-web` WASM in a renderer | No Python/native ORT in the browser path; latency and memory characteristics differ. |
-| Obsidian renderer | Not applicable | Temporarily hides renderer-exposed Node `process` while ORT creates WASM sessions | Prevents ORT-Web from selecting an unavailable Node worker path in the tested Obsidian renderer. |
+| Electron renderer | Not applicable | Temporarily hides renderer-exposed Node `process` while ORT creates WASM sessions | Prevents ORT-Web from selecting an unavailable Node worker path in the tested Electron renderer. |
 
 ## Assertions that are validated
 
@@ -24,4 +24,4 @@ This harness is not a byte-for-byte API port of `source/inference.py`. It preser
 - General frontend equivalence beyond the fixture corpus.
 - Non-zero-noise waveform equality between Python and browser.
 - Subjective speech quality or prosody equivalence.
-- Offline behavior after installation as an Obsidian plugin.
+- Offline behavior after integration into a downstream application.

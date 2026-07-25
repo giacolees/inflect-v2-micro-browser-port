@@ -22,7 +22,7 @@ try {
 		"FRONTEND_PARITY_OK ephone/eSpeak-NG WASM matches the six-case frontend fixture",
 	);
 	console.log(
-		"GO_NO_GO_SUMMARY NO-GO: frontend, ORT-Web/WASM synthesis, WAV generation, and renderer smoke checks pass; plugin-local offline replay, listening review, cancellation, and supported-version acceptance remain required before Obsidian integration.",
+		"METHOD_STATUS: frontend, ORT-Web/WASM synthesis, WAV generation, and renderer smoke checks pass; listening review, cancellation, target-runtime acceptance, and downstream offline packaging remain outside this method assessment.",
 	);
 } catch (error) {
 	console.error(error.stack ?? error);

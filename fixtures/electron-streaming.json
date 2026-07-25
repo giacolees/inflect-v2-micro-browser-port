@@ -1,6 +1,5 @@
 {
   "runtime": {
-    "obsidian": "1.8.10",
     "electron": "34.2.0",
     "chrome": "132.0.6834.196"
   },

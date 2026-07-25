@@ -2,7 +2,7 @@
 
 A transparent experiment for running the [`owensong/Inflect-Micro-v2`](https://huggingface.co/owensong/Inflect-Micro-v2) VITS-family TTS model entirely in an Electron/Chromium renderer.
 
-> **Status: feasibility evidence, not a production plugin.** The browser frontend, ONNX inference, WAV generation, chunk streaming, and an Obsidian Electron renderer smoke test work. Offline plugin packaging/restart replay and listening acceptance are still required before a production GO.
+> **Status: feasibility evidence, not a production package.** The browser frontend, ONNX inference, WAV generation, chunk streaming, and an Electron renderer smoke test work. Listening acceptance and target-environment integration remain outside this repository.
 
 ## What this proves
 
@@ -11,7 +11,7 @@ A transparent experiment for running the [`owensong/Inflect-Micro-v2`](https://h
 - Browser frontend parity on six representative fixtures.
 - Native ORT ↔ Chromium zero-noise waveform parity for the simple prompt.
 - Chunked Web Audio playback: each completed chunk is queued while later chunks synthesize.
-- A smoke run in Obsidian 1.8.10 / Electron 34.2.0.
+- A smoke run in Electron 34.2.0.
 
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for measurements and [docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md) before treating the browser path as a replacement for upstream Python.
 
@@ -58,7 +58,7 @@ npm run benchmark-browser
 npm run benchmark-python-onnx
 ```
 
-The main verification suite covers ONNX validity, native ONNX execution, padded-core parity, WAV validity, real Chromium WASM synthesis, and browser frontend fixtures. It does **not** establish listening quality, plugin-local offline replay, or a production GO.
+The main verification suite covers ONNX validity, native ONNX execution, padded-core parity, WAV validity, real Chromium WASM synthesis, and browser frontend fixtures. It does **not** establish listening quality, application integration, or a production GO.
 
 ## Repository map
 
@@ -76,11 +76,11 @@ Large checkpoints, ONNX graphs, WAVs, and transient comparison buffers are inten
 
 ## License and provenance
 
-The upstream model/source license is retained in [`LICENSE`](LICENSE). The browser phonemizer is `ephone@1.0.2`, GPL-3.0-or-later; its notice/copying text and provenance are retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `third_party/EPHONE_COPYING.txt`. Any downstream plugin that ships this frontend must be GPL-3.0-or-later-compatible and provide corresponding-source obligations as required.
+The upstream model/source license is retained in [`LICENSE`](LICENSE). The browser phonemizer is `ephone@1.0.2`, GPL-3.0-or-later; its notice/copying text and provenance are retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `third_party/EPHONE_COPYING.txt`. Any downstream distribution that ships this frontend must be GPL-3.0-or-later-compatible and provide corresponding-source obligations as required.
 
 ## Current non-GO items
 
-- Install as an actual plugin with plugin-local assets, then prove network-disabled restart/replay.
 - Listening review across punctuation, non-ASCII text, and long streamed notes.
 - Define target-device latency/memory limits and test cancellation/stop behavior.
-- Validate supported Obsidian/Electron versions beyond the recorded smoke environment.
+- Validate the method in each downstream application's supported Electron/runtime environment.
+- Confirm asset packaging and offline behavior in each downstream application.

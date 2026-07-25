@@ -1,4 +1,0 @@
-{"_type":"meta","title":"Complete corpus evidence and feasibility decision","plan_name":"inflect-browser-evidence","created_at":"2026-07-25T12:55:38.508Z","base_commit":"0dfd032a7177dd6ec67cc21388d5d38f2cc6644a"}
-{"_type":"task","id":"t-001","description":"Run browser-versus-Python corpus comparisons","details":"","status":"pending","created_at":"2026-07-25T12:55:38.508Z","updated_at":"2026-07-25T12:55:38.508Z"}
-{"_type":"task","id":"t-002","description":"Record offline, licensing, and listening evidence","details":"","status":"pending","created_at":"2026-07-25T12:55:38.508Z","updated_at":"2026-07-25T12:55:38.508Z"}
-{"_type":"task","id":"t-003","description":"Publish final verification and GO/NO-GO report","details":"","status":"pending","created_at":"2026-07-25T12:55:38.508Z","updated_at":"2026-07-25T12:55:38.508Z"}

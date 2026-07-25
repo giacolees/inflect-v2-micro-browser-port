@@ -59,7 +59,7 @@
     const MAX_FRAMES = 4000,
       LATENT_CHANNELS = 192,
       SAMPLE_RATE = 24000;
-    // Obsidian exposes Node's `process` to its renderer; avoid ORT selecting
+    // Some Electron renderers expose Node's `process`; avoid ORT selecting
     // its Node worker path while creating browser/WASM sessions.
     const nodeProcess = globalThis.process;
     const started = performance.now();
