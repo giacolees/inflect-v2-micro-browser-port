@@ -47,9 +47,8 @@ try {
 	page.on("pageerror", (error) =>
 		console.error(`BROWSER_PAGE_ERROR ${error.stack}`),
 	);
-	const query = process.env.TEXT
-		? `?text=${encodeURIComponent(process.env.TEXT)}`
-		: "";
+	const textQuery = process.env.TEXT ? `text=${encodeURIComponent(process.env.TEXT)}&` : "";
+	const query = `?${textQuery}test=1`;
 	await page.goto(`http://127.0.0.1:${port}/browser/index.html${query}`, {
 		waitUntil: "networkidle",
 		timeout: 120000,
@@ -65,7 +64,21 @@ try {
 	) {
 		throw new Error(`BROWSER_ORT_FAILED ${JSON.stringify(result)}`);
 	}
-	console.log(`CHROMIUM_ORT_WEB_OK ${JSON.stringify(result)}`);
+	const heapBeforeWarm = await page.evaluate(
+		() => performance.memory?.usedJSHeapSize ?? null,
+	);
+	const warmStarted = performance.now();
+	await page.reload({ waitUntil: "networkidle", timeout: 120000 });
+	const warmResult = JSON.parse(await page.locator("body").textContent());
+	if (!warmResult.ok || !warmResult.finite || !warmResult.wavValid) {
+		throw new Error(`BROWSER_WARM_FAILED ${JSON.stringify(warmResult)}`);
+	}
+	const heapAfterWarm = await page.evaluate(
+		() => performance.memory?.usedJSHeapSize ?? null,
+	);
+	console.log(
+		`CHROMIUM_ORT_WEB_OK ${JSON.stringify({ ...result, warmMs: performance.now() - warmStarted, heapBeforeWarm, heapAfterWarm })}`,
+	);
 } finally {
 	await browser.close();
 	server.close();

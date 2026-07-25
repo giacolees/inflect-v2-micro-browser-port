@@ -1,8 +1,18 @@
-<!doctype html><meta charset="utf-8" /><title>Inflect ORT Web proof</title>
+<!doctype html><meta charset="utf-8" /><title>Inflect Micro v2</title>
+<style>body{font:16px system-ui;margin:0;background:#f6f4ee;color:#222}main{max-width:780px;margin:48px auto;padding:28px;background:#fff;border:1px solid #d8d4ca;border-radius:12px}textarea{width:100%;min-height:140px;box-sizing:border-box;padding:12px;font:15px ui-monospace;border:1px solid #aaa;border-radius:7px}button,a{display:inline-block;margin:16px 8px 12px 0;background:#174a45;color:#fff;border:0;border-radius:6px;padding:11px 16px;font-weight:700;text-decoration:none}audio{width:100%}</style>
+<main><h1>Inflect Micro v2</h1><p>Preparing local eSpeak-NG WASM + ONNX Runtime Web synthesis…</p><textarea id="text"></textarea><button id="synthesize">Synthesize locally</button><a id="download" download="inflect.wav">Download WAV</a><p id="status"></p><audio id="audio" controls></audio></main>
 <script src="/node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
 <script type="module">
-  import { createInflectFrontend, MAX_TOKENS, splitText } from "/browser/frontend.mjs";
-  import { concatenateChunks, encodeFloat32Wav, seededNormalNoise } from "/browser/runtime.mjs";
+  import {
+    createInflectFrontend,
+    MAX_TOKENS,
+    splitText,
+  } from "/browser/frontend.mjs";
+  import {
+    concatenateChunks,
+    encodeFloat32Wav,
+    seededNormalNoise,
+  } from "/browser/runtime.mjs";
   (async () => {
     const MAX_FRAMES = 4000;
     const LATENT_CHANNELS = 192;
@@ -18,41 +28,85 @@
       };
       phase = "creating-sessions";
       const [core, decoder] = await Promise.all([
-        fetchModel("/browser/inflect-core.onnx").then((model) => ort.InferenceSession.create(model, { executionProviders: ["wasm"] })),
-        fetchModel("/browser/inflect-decoder.onnx").then((model) => ort.InferenceSession.create(model, { executionProviders: ["wasm"] })),
+        fetchModel("/browser/inflect-core.onnx").then((model) =>
+          ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
+        ),
+        fetchModel("/browser/inflect-decoder.onnx").then((model) =>
+          ort.InferenceSession.create(model, { executionProviders: ["wasm"] }),
+        ),
       ]);
       phase = "running-frontend";
       const frontend = await createInflectFrontend();
       if (new URLSearchParams(location.search).has("parity")) {
         const [fixture, prompts] = await Promise.all([
-          fetch("/fixtures/vits-frontend-fixture.json").then((response) => response.json()),
+          fetch("/fixtures/vits-frontend-fixture.json").then((response) =>
+            response.json(),
+          ),
           fetch("/fixtures/prompts.json").then((response) => response.json()),
         ]);
-        const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt.text]));
+        const promptById = new Map(
+          prompts.map((prompt) => [prompt.id, prompt.text]),
+        );
         const cases = fixture.map((expected) => {
           const actual = frontend.phonemize(promptById.get(expected.id));
-          return { id: expected.id, normalized: actual.normalizedText === expected.normalized_text, phonemes: actual.phonemeText === expected.phoneme_text, ids: JSON.stringify(actual.ids) === JSON.stringify(expected.ids) };
+          return {
+            id: expected.id,
+            normalized: actual.normalizedText === expected.normalized_text,
+            phonemes: actual.phonemeText === expected.phoneme_text,
+            ids: JSON.stringify(actual.ids) === JSON.stringify(expected.ids),
+          };
         });
-        document.body.textContent = JSON.stringify({ ok: cases.every((result) => result.normalized && result.phonemes && result.ids), cases });
+        document.body.textContent = JSON.stringify({
+          ok: cases.every(
+            (result) => result.normalized && result.phonemes && result.ids,
+          ),
+          cases,
+        });
         return;
       }
-      const inputText = new URLSearchParams(location.search).get("text") ?? "The quick brown fox jumps over the lazy dog.";
+      const inputText =
+        new URLSearchParams(location.search).get("text") ??
+        "The quick brown fox jumps over the lazy dog.";
       const sourceChunks = splitText(inputText);
       const frontendOutputs = frontend.phonemizeChunks(inputText);
-      if (sourceChunks.length !== frontendOutputs.length) throw new Error("frontend chunk mismatch");
+      if (sourceChunks.length !== frontendOutputs.length)
+        throw new Error("frontend chunk mismatch");
       const synthesizeChunk = async (output, seed) => {
-        if (output.ids.length > MAX_TOKENS) throw new Error(`token limit exceeded: ${output.ids.length}`);
+        if (output.ids.length > MAX_TOKENS)
+          throw new Error(`token limit exceeded: ${output.ids.length}`);
         const paddedTokens = new BigInt64Array(MAX_TOKENS);
-        output.ids.forEach((id, index) => { paddedTokens[index] = BigInt(id); });
+        output.ids.forEach((id, index) => {
+          paddedTokens[index] = BigInt(id);
+        });
         const coreOutput = await core.run({
           tokens: new ort.Tensor("int64", paddedTokens, [1, MAX_TOKENS]),
-          lengths: new ort.Tensor("int64", BigInt64Array.of(BigInt(output.ids.length)), [1]),
-          latent_noise: new ort.Tensor("float32", seededNormalNoise(seed, LATENT_CHANNELS, MAX_FRAMES), [1, LATENT_CHANNELS, MAX_FRAMES]),
+          lengths: new ort.Tensor(
+            "int64",
+            BigInt64Array.of(BigInt(output.ids.length)),
+            [1],
+          ),
+          latent_noise: new ort.Tensor(
+            "float32",
+            seededNormalNoise(seed, LATENT_CHANNELS, MAX_FRAMES),
+            [1, LATENT_CHANNELS, MAX_FRAMES],
+          ),
         });
         const frames = Number(coreOutput.frame_lengths.data[0]);
-        if (!Number.isInteger(frames) || frames < 1 || frames > MAX_FRAMES) throw new Error(`invalid predicted frame length ${frames}`);
-        const latent = coreOutput.latent.data.subarray(0, LATENT_CHANNELS * frames);
-        const waveform = (await decoder.run({ latent: new ort.Tensor("float32", latent, [1, LATENT_CHANNELS, frames]) })).waveform.data;
+        if (!Number.isInteger(frames) || frames < 1 || frames > MAX_FRAMES)
+          throw new Error(`invalid predicted frame length ${frames}`);
+        const latent = coreOutput.latent.data.subarray(
+          0,
+          LATENT_CHANNELS * frames,
+        );
+        const waveform = (
+          await decoder.run({
+            latent: new ort.Tensor("float32", latent, [
+              1,
+              LATENT_CHANNELS,
+              frames,
+            ]),
+          })
+        ).waveform.data;
         return { frames, waveform };
       };
       phase = "running-synthesis";
@@ -64,14 +118,55 @@
         frames += result.frames;
       }
       const waveform = concatenateChunks(pieces, sourceChunks);
-      let finite = true, min = Infinity, max = -Infinity;
-      for (const sample of waveform) { finite &&= Number.isFinite(sample); min = Math.min(min, sample); max = Math.max(max, sample); }
+      let finite = true,
+        min = Infinity,
+        max = -Infinity,
+        sum = 0,
+        sumSquares = 0;
+      for (const sample of waveform) {
+        finite &&= Number.isFinite(sample);
+        min = Math.min(min, sample);
+        max = Math.max(max, sample);
+        sum += sample;
+        sumSquares += sample * sample;
+      }
       const wav = encodeFloat32Wav(waveform);
       const wavView = new DataView(wav);
-      const wavValid = wavView.getUint32(0, false) === 0x52494646 && wavView.getUint32(8, false) === 0x57415645 && wavView.getUint32(24, true) === 24000 && wavView.getUint16(22, true) === 1;
-      document.body.textContent = JSON.stringify({ ok: true, chunks: frontendOutputs.length, tokenCount: frontendOutputs.reduce((sum, output) => sum + output.ids.length, 0), loadMs: performance.now() - started, frames, samples: waveform.length, finite, min, max, wavBytes: wav.byteLength, wavValid });
+      const wavValid =
+        wavView.getUint32(0, false) === 0x52494646 &&
+        wavView.getUint32(8, false) === 0x57415645 &&
+        wavView.getUint32(24, true) === 24000 &&
+        wavView.getUint16(22, true) === 1;
+      const result = {
+        ok: true,
+        chunks: frontendOutputs.length,
+        tokenCount: frontendOutputs.reduce((sum, output) => sum + output.ids.length, 0),
+        loadMs: performance.now() - started,
+        frames, samples: waveform.length, finite, min, max, sum, sumSquares,
+        wavBytes: wav.byteLength, wavValid,
+      };
+      const params = new URLSearchParams(location.search);
+      if (params.has("test")) {
+        document.body.textContent = JSON.stringify(result);
+        return;
+      }
+      const url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+      document.querySelector("main p").textContent = "Local eSpeak-NG WASM + ONNX Runtime Web synthesis.";
+      document.querySelector("#text").value = inputText;
+      document.querySelector("#audio").src = url;
+      document.querySelector("#download").href = url;
+      document.querySelector("#status").textContent = `${result.chunks} chunk(s), ${result.samples} samples, ${(result.loadMs / 1000).toFixed(2)} s; no text/audio was sent to a server.`;
+      document.querySelector("#synthesize").onclick = () => {
+        const text = document.querySelector("#text").value;
+        location.search = `?text=${encodeURIComponent(text)}`;
+      };
     } catch (error) {
-      document.body.textContent = JSON.stringify({ ok: false, phase, error: String(error), stack: error.stack });
+      document.body.textContent = JSON.stringify({
+        ok: false,
+        phase,
+        error: String(error),
+        stack: error.stack,
+      });
     }
   })();
 </script>
