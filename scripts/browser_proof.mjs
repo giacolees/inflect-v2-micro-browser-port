@@ -47,7 +47,8 @@ try {
 	page.on("pageerror", (error) =>
 		console.error(`BROWSER_PAGE_ERROR ${error.stack}`),
 	);
-	await page.goto(`http://127.0.0.1:${port}/browser/index.html`, {
+	const query = process.env.TEXT ? `?text=${encodeURIComponent(process.env.TEXT)}` : "";
+	await page.goto(`http://127.0.0.1:${port}/browser/index.html${query}`, {
 		waitUntil: "networkidle",
 		timeout: 120000,
 	});
@@ -56,7 +57,9 @@ try {
 		!result.ok ||
 		!result.finite ||
 		!Number.isInteger(result.frames) ||
-		result.samples !== result.frames * 256
+		result.samples !== result.frames * 256 ||
+		!result.wavValid ||
+		result.wavBytes !== 44 + result.samples * 4
 	) {
 		throw new Error(`BROWSER_ORT_FAILED ${JSON.stringify(result)}`);
 	}

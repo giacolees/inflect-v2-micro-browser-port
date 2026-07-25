@@ -184,7 +184,7 @@ export function normalizeText(input) {
 			`${MONTHS[Number(month) - 1]} ${ordinal(Number(day))} ${words(Number(year))}`,
 	);
 	text = text.replace(
-		/\b(\d{1,2}):(\d{2})\s*([AaPp]\.?\s*[Mm]\.)?\b/g,
+		/\b(\d{1,2}):(\d{2})\s*([AaPp]\.?\s*[Mm])?(?=\s|$|[.,;:!?])/g,
 		(_, hour, minute, suffix = "") =>
 			`${words(Number(hour))} ${Number(minute) === 0 ? "o clock" : Number(minute) < 10 ? `oh ${words(Number(minute))}` : words(Number(minute))}${suffix ? ` ${suffix.toLowerCase().replace(/\./g, "").split("").join(" ")}` : ""}`,
 	);

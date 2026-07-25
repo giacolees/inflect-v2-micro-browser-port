@@ -5,6 +5,7 @@
     createInflectFrontend,
     MAX_TOKENS as FRONTEND_MAX_TOKENS,
   } from "/browser/frontend.mjs";
+  import { encodeFloat32Wav, seededNormalNoise } from "/browser/runtime.mjs";
   (async () => {
     const MAX_TOKENS = FRONTEND_MAX_TOKENS;
     const MAX_FRAMES = 4000;
@@ -31,17 +32,20 @@
       phase = "running-frontend";
       const frontend = await createInflectFrontend();
       if (new URLSearchParams(location.search).has("parity")) {
-        const fixture = await fetch(
-          "/fixtures/vits-frontend-fixture.json",
-        ).then((response) => response.json());
+        const [fixture, prompts] = await Promise.all([
+          fetch("/fixtures/vits-frontend-fixture.json").then((response) => response.json()),
+          fetch("/fixtures/prompts.json").then((response) => response.json()),
+        ]);
+        const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt.text]));
         const cases = fixture.map((expected) => {
-          const actual = frontend.phonemize(expected.normalized_text);
+          const actual = frontend.phonemize(promptById.get(expected.id));
           const mismatch = actual.ids.findIndex(
             (value, index) => value !== expected.ids[index],
           );
           return {
             id: expected.id,
             normalized: actual.normalizedText === expected.normalized_text,
+            actualNormalizedText: actual.normalizedText,
             phonemes: actual.phonemeText === expected.phoneme_text,
             ids: JSON.stringify(actual.ids) === JSON.stringify(expected.ids),
             mismatch,
@@ -57,9 +61,8 @@
         });
         return;
       }
-      const frontendOutput = frontend.phonemize(
-        "The quick brown fox jumps over the lazy dog.",
-      );
+      const inputText = new URLSearchParams(location.search).get("text") ?? "The quick brown fox jumps over the lazy dog.";
+      const frontendOutput = frontend.phonemize(inputText);
       const tokenValues = frontendOutput.ids;
       if (tokenValues.length > MAX_TOKENS) {
         throw new Error(`token limit exceeded: ${tokenValues.length}`);
@@ -78,7 +81,7 @@
         ),
         latent_noise: new ort.Tensor(
           "float32",
-          new Float32Array(LATENT_CHANNELS * MAX_FRAMES),
+          seededNormalNoise(0, LATENT_CHANNELS, MAX_FRAMES),
           [1, LATENT_CHANNELS, MAX_FRAMES],
         ),
       });
@@ -108,6 +111,9 @@
         min = Math.min(min, sample);
         max = Math.max(max, sample);
       }
+      const wav = encodeFloat32Wav(waveform);
+      const wavView = new DataView(wav);
+      const wavValid = wavView.getUint32(0, false) === 0x52494646 && wavView.getUint32(8, false) === 0x57415645 && wavView.getUint32(24, true) === 24000 && wavView.getUint16(22, true) === 1;
       document.body.textContent = JSON.stringify({
         ok: true,
         normalizedText: frontendOutput.normalizedText,
@@ -119,6 +125,8 @@
         finite,
         min,
         max,
+        wavBytes: wav.byteLength,
+        wavValid,
       });
     } catch (error) {
       document.body.textContent = JSON.stringify({

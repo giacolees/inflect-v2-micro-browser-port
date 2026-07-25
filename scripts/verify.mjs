@@ -18,7 +18,9 @@ try {
 		throw new Error(`browser proof did not report success\n${browserOutput}`);
 	}
 	process.stdout.write(browserOutput);
-	console.log("FRONTEND_PARITY_OK ephone/eSpeak-NG WASM matches the six-case frontend fixture");
+	console.log(
+		"FRONTEND_PARITY_OK ephone/eSpeak-NG WASM matches the six-case frontend fixture",
+	);
 	console.log(
 		"GO_NO_GO_SUMMARY NO-GO: frontend and ORT-Web synthesis pass, but seeded corpus audio, WAV/playback, offline cache, renderer measurements, and listening evidence remain unsolved; do not integrate into Obsidian.",
 	);
