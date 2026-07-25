@@ -13,7 +13,8 @@ export const MODEL_BASE_URL =
 
 async function fetchModel(name) {
 	const response = await fetch(`${MODEL_BASE_URL}/${name}`);
-	if (!response.ok) throw new Error(`Could not download ${name} (${response.status})`);
+	if (!response.ok)
+		throw new Error(`Could not download ${name} (${response.status})`);
 	return response.arrayBuffer();
 }
 
