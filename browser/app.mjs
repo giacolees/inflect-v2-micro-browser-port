@@ -37,7 +37,6 @@ function resultFor(completed, loadMs, firstAudioMs) {
 				view.getUint32(8, false) === 0x57415645,
 		},
 		waveform,
-		latent: completed.pieces[0].latent,
 		ids: completed.outputs[0].ids,
 		wav,
 	};
@@ -87,11 +86,13 @@ async function main() {
 	if (params.has("parity")) return runParity(inference.frontend);
 	if (isTest) {
 		const completed = await inference.synthesize(inputText, {
+			speed: Number(params.get("speed") ?? 1),
+			variation: Number(params.get("variation") ?? 0.667),
+			seed: Number(params.get("seed") ?? 0),
 			zeroNoise: params.has("zeroNoise"),
 		});
 		const output = resultFor(completed, performance.now() - pageStarted, null);
 		window.__inflectWaveform = output.waveform;
-		window.__inflectLatent = output.latent;
 		window.__inflectIds = output.ids;
 		document.body.textContent = JSON.stringify(output.result);
 		return;
@@ -101,11 +102,25 @@ async function main() {
 	const button = document.querySelector("#synthesize");
 	const status = document.querySelector("#status");
 	const audio = document.querySelector("#audio");
+	const speed = document.querySelector("#speed");
+	const variation = document.querySelector("#variation");
+	const seed = document.querySelector("#seed");
+	const bindOutput = (input, output, digits) => {
+		const update = () => {
+			output.value = Number(input.value).toFixed(digits);
+		};
+		input.addEventListener("input", update);
+		update();
+	};
+	bindOutput(speed, document.querySelector("#speed-value"), 2);
+	bindOutput(variation, document.querySelector("#variation-value"), 3);
 	textArea.value = inputText;
 	document.querySelector("#intro").textContent =
-		"The browser frontend and ONNX Runtime Web/WASM sessions are ready.";
+		"The browser frontend and ONNX Runtime sessions are ready.";
 	document.querySelector("#runtime-state").textContent =
-		"Ready · WASM execution provider";
+		inference.runtime.provider.includes("webgpu")
+			? "Ready · WASM duration + WebGPU FP16 decoder"
+			: `Ready · WASM · ${inference.runtime.threads} thread(s)`;
 	button.disabled = false;
 	window.__inflectLastResult = null;
 	button.onclick = async () => {
@@ -119,6 +134,9 @@ async function main() {
 		try {
 			await audioContext.resume();
 			const completed = await inference.synthesize(textArea.value, {
+				speed: Number(speed.value),
+				variation: Number(variation.value),
+				seed: Number(seed.value),
 				onChunk: ({ index, total, ...piece }) => {
 					status.textContent = `Running ONNX graph for chunk ${index + 1} of ${total}…`;
 					nextStart = queueAudio(

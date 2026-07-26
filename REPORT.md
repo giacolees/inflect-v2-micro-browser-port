@@ -1,51 +1,55 @@
 # Browser implementation notes
 
-This repository documents a browser-only implementation of the Inflect Micro v2
-inference path. The renderer combines eSpeak-compatible WASM phonemization,
-ONNX Runtime Web/WASM execution, Web Audio chunk scheduling, and WAV encoding
-without a server-side inference service.
+This repository implements Inflect Micro v2 for Chromium renderers such as
+Electron and Obsidian. It combines eSpeak-compatible WASM phonemization,
+dynamic ONNX inference, Web Audio chunk scheduling, and WAV encoding without a
+server-side inference service.
 
 ## Runtime flow
 
 1. `browser/frontend.mjs` normalizes input, splits long text, phonemizes each
-   chunk with `ephone`, and converts supported IPA symbols to
-   blank-interspersed model IDs.
-2. `browser/inference.mjs` loads the fixed-width core and dynamic decoder ONNX
-   graphs with the WASM execution provider. In Electron renderers it
-   temporarily hides Node's `process` while sessions are created so ORT selects
-   the browser backend.
-3. The core receives `[1,512]` token IDs, a `[1,192,4000]` latent-noise tensor,
-   and the real token length. Its predicted frame length trims the latent
-   before the decoder runs.
-4. `browser/app.mjs` receives each decoded waveform as it completes, schedules
-   it through Web Audio, and builds a final 24 kHz float WAV with helpers in
-   `browser/runtime.mjs`.
+   chunk with `ephone`, and creates blank-interspersed model IDs.
+2. `browser/inference.mjs` runs the dynamic FP32 duration graph through WASM and
+   prefers WebGPU for the custom FP16-internal decoder. This preserves stable
+   duration outputs while accelerating waveform generation.
+3. The duration graph applies `length_scale = 1 / speed`. Seeded normal noise
+   and `noise_scale = variation` feed the decoder. Each long-text chunk uses
+   `seed + chunkIndex`.
+4. If WebGPU initialization fails, the runtime loads the official FP32 decoder
+   and uses WASM with up to four threads when cross-origin isolation permits.
+5. `browser/app.mjs` schedules every completed waveform through Web Audio and
+   builds a final 24 kHz float WAV with `browser/runtime.mjs`.
 
-## Recorded verification
+Electron exposes Node's `process` in its renderer. The implementation hides it
+only while ORT selects its backend so ONNX Runtime does not enter an unavailable
+Node worker path in Obsidian/Electron.
 
-- `ephone@1.0.2` matches all six frontend fixtures for normalized text,
-  phonemes, and blank-interspersed IDs.
-- The two ONNX graphs run in Chromium through ORT-Web/WASM.
-- For the recorded zero-noise input, native ORT and Chromium ORT-Web produce
-  68,096 samples with latent max error `3.34e-06`, waveform max error
-  `1.19e-04`, RMSE `1.99e-06`, and correlation `0.9999999995`.
-- The recorded Electron streaming run scheduled its first of five chunks at
-  `3.04 s` and completed 361,600 samples at `11.54 s`.
+## Performance
 
-These measurements are reproducible evidence for the documented configuration,
-not device-independent performance guarantees. See
-[docs/VERIFICATION.md](docs/VERIFICATION.md) for commands and the complete
-environment notes.
+For a 175-token first chunk in headless Chromium, three warm runs measured:
+
+| Runtime | Median first decoded chunk |
+| --- | ---: |
+| Official FP32 ONNX, WASM | `2819 ms` |
+| Official FP32 ONNX, WebGPU | `187 ms` |
+| WASM duration + custom FP16 WebGPU decoder | **`160 ms`** |
+
+A five-chunk browser UI run scheduled first audio at `427 ms` and completed in
+`1013 ms` after model/session initialization. Results are device-specific.
+
+## Numerical comparison
+
+Native ORT comparison against the official FP32 decoder measured correlation
+`0.9998344`, RMSE `0.0011444`, and maximum absolute difference `0.031019`.
+Direct FP16-versus-FP32 WebGPU comparison measured RMSE `0.04685` and maximum
+absolute difference `0.51394`. FP16 still needs listening and intelligibility
+acceptance for a target application.
 
 ## Integration considerations
 
-The browser path intentionally differs from `source/inference.py`: it uses
-eSpeak WASM rather than native eSpeak, padded core inputs plus a separate
-decoder, seeded JavaScript noise, and browser chunk scheduling. The explicit
-zero-noise comparison is the cross-runtime waveform check. See
-[docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md) when adapting the
-implementation.
-
-Packaging owners remain responsible for their target runtime, performance
-budgets, cancellation behavior, offline asset delivery, listening evaluation,
-and GPL/provenance obligations.
+Obsidian plugins must allow model downloads from Hugging Face in their content
+security policy, or package/cache the two WebGPU assets locally. WebGPU support
+depends on the Electron version and device; the official FP32 WASM fallback is
+retained for compatibility. Packaging owners remain responsible for offline
+asset delivery, cancellation, memory budgets, listening evaluation, and
+GPL/provenance obligations for the `ephone` frontend.

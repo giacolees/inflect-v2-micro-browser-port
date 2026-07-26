@@ -114,12 +114,42 @@
       font: inherit;
       line-height: 1.5;
     }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .control {
+      border: 1px solid #dce2ee;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      margin: 0 0 10px;
+    }
+    .control output {
+      color: #3159c9;
+      font-family: ui-monospace, monospace;
+    }
+    .control input {
+      width: 100%;
+    }
+    .control small {
+      display: block;
+      min-height: 2.5em;
+      margin-top: 8px;
+      color: #62708a;
+      line-height: 1.25;
+    }
     .actions {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 14px;
+      margin-top: 18px;
     }
     button {
       border: 0;
@@ -169,6 +199,9 @@
         align-items: flex-start;
         flex-direction: column;
       }
+      .controls {
+        grid-template-columns: 1fr;
+      }
     }
     @media (max-width: 430px) {
       .pipeline {
@@ -202,8 +235,8 @@
           <span>03 · ONNX</span>
           <h2>Run two graphs</h2>
           <p>
-            ORT-Web/WASM runs the fixed-width core, then decodes its latent
-            audio.
+            ORT-Web/WASM predicts dynamic durations, then decodes the sampled
+            latent audio.
           </p>
         </article>
         <article class="stage">
@@ -222,6 +255,23 @@
         </div>
         <label for="text">Input text</label>
         <textarea id="text"></textarea>
+        <div class="controls" aria-label="Voice controls">
+          <div class="control">
+            <label for="speed">Speed <output id="speed-value">1.00</output></label>
+            <input id="speed" type="range" min="0.5" max="2" step="0.05" value="1" />
+            <small>Lower is slower; higher is faster.</small>
+          </div>
+          <div class="control">
+            <label for="variation">Variation <output id="variation-value">0.667</output></label>
+            <input id="variation" type="range" min="0" max="1" step="0.001" value="0.667" />
+            <small>Lower is steadier; higher samples more variation.</small>
+          </div>
+          <div class="control">
+            <label for="seed">Seed</label>
+            <input id="seed" type="number" step="1" value="0" />
+            <small>Repeat the same sample on the same runtime.</small>
+          </div>
+        </div>
         <div class="actions">
           <button id="synthesize" disabled>Run browser inference</button
           ><a id="download" download="inflect.wav">Download WAV</a>
@@ -235,7 +285,7 @@
         <code>browser/runtime.mjs</code> (chunk assembly and WAV encoding).
       </p>
     </main>
-    <script src="/node_modules/onnxruntime-web/dist/ort.wasm.min.js"></script>
+    <script src="/node_modules/onnxruntime-web/dist/ort.webgpu.min.js"></script>
     <script type="module" src="/browser/app.mjs"></script>
   </body>
 </html>

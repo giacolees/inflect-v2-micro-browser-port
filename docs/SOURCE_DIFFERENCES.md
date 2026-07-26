@@ -1,27 +1,32 @@
-# Browser port vs. upstream Python behavior
+# Browser runtime vs. upstream Python behavior
 
-This harness is not a byte-for-byte API port of `source/inference.py`. It preserves the model family and validates selected boundaries, but deliberately changes runtime mechanics for a renderer-only path.
+The renderer preserves the model architecture and public synthesis controls but
+changes runtime mechanics for Electron/Obsidian.
 
-| Area | Upstream Python reference | Browser/WASM harness | Consequence |
+<!-- markdownlint-disable MD013 -->
+| Area | Upstream Python | Electron/browser runtime | Consequence |
 | --- | --- | --- | --- |
-| Text frontend | Native `phonemizer` / eSpeak-NG | `ephone` eSpeak-NG WASM | Exact normalized text, phonemes, and IDs pass six fixtures; untested input classes may differ. |
-| Core model | PyTorch `model.infer` | ONNX core with fixed `[1, 512]` token input | Inputs are zero-padded and masked; text over 512 IDs is rejected per chunk. |
-| Decoder | Part of PyTorch model invocation | Separate dynamic-frame ONNX decoder | The browser trims each channel of padded latent output before decoder invocation. |
-| Randomness | PyTorch seed and `noise_scale=variation` | JS mulberry32 + Box–Muller standard-normal noise | Seeded noise algorithms and default variation are not equivalent. Cross-runtime waveform parity is established only with explicit zero noise. |
-| Speed/variation controls | `speed`, `variation`, and duration-noise controls | No public browser control surface; fixed speed and seeded latent noise | Do not assume Python `synthesize(..., variation=0.667)` matches browser audio. |
-| Long text | Python creates all chunks then concatenates a waveform | Browser synthesizes sequential chunks and schedules each completed chunk via Web Audio | First audio can begin before total synthesis completes; final WAV is still assembled after all chunks. |
-| Runtime | Native Python/PyTorch | `onnxruntime-web` WASM in a renderer | No Python/native ORT in the browser path; latency and memory characteristics differ. |
-| Electron renderer | Not applicable | Temporarily hides renderer-exposed Node `process` while ORT creates WASM sessions | Prevents ORT-Web from selecting an unavailable Node worker path in the tested Electron renderer. |
+| Text frontend | Native `phonemizer` / eSpeak-NG | `ephone` eSpeak-NG WASM | Six exact frontend fixtures pass; other input classes can differ. |
+| Duration | PyTorch inference | Official dynamic FP32 ONNX duration graph | Dynamic token/audio lengths and public speed control are retained. |
+| Decoder | FP32 PyTorch | FP16-internal ONNX decoder on WebGPU | Lower latency and memory; output is numerically close but not identical. |
+| Fallback | Not applicable | Official FP32 ONNX decoder through WASM | Supports devices where WebGPU initialization fails. |
+| Randomness | PyTorch RNG | JS Mulberry32 plus Box–Muller noise | A browser seed repeats in the same runtime, but does not match PyTorch RNG. |
+| Controls | `speed`, `variation`, `seed` | Same ranges and defaults | Speed maps to inverse length scale; variation scales seeded noise. |
+| Long text | Punctuation-aware chunks joined in Python | Chunks stream through Web Audio and are also joined into a WAV | First audio begins before all chunks complete. |
+| Electron | Not applicable | Renderer-exposed Node `process` is hidden during ORT backend selection | Prevents ORT from choosing an unavailable Node worker path. |
+<!-- markdownlint-enable MD013 -->
 
-## Assertions that are validated
+## Validated boundaries
 
-- Padded Python core vs. unpadded Python reference: retained latent max error `1.91e-06`; waveform max error `5.05e-08` for the recorded zero-noise case.
 - Browser frontend: 6/6 exact fixture matches.
-- Native ORT vs. Chromium ORT-Web with identical IDs and zero noise: waveform correlation `0.9999999995`; evidence in `fixtures/browser-native-zero-noise-comparison.json`.
+- First-chunk benchmark: hybrid FP32 WASM/FP16 WebGPU median `160 ms`, official
+  FP32 WebGPU `187 ms`, and official FP32 WASM `2819 ms`.
+- Native FP16/FP32 seeded waveform: correlation `0.9998344`; direct WebGPU
+  comparison has RMSE `0.04685` and requires listening acceptance.
 
-## Assertions that are not validated
+## Not yet validated
 
-- General frontend equivalence beyond the fixture corpus.
-- Non-zero-noise waveform equality between Python and browser.
-- Subjective speech quality or prosody equivalence.
-- Offline behavior after integration into a downstream application.
+- Listening and intelligibility acceptance of FP16 across representative text.
+- Seed equality with the Python runtime (the RNG algorithms differ).
+- Every Electron/device WebGPU implementation.
+- Offline behavior and cancellation in a downstream Obsidian plugin.

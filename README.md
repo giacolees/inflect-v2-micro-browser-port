@@ -2,9 +2,10 @@
 
 A compact reference implementation of browser-only text-to-speech with
 [`owensong/Inflect-Micro-v2`](https://huggingface.co/owensong/Inflect-Micro-v2),
-eSpeak-compatible WASM phonemization, and ONNX Runtime Web/WASM. It is organized
-to make each inference step visible: text normalization, phoneme IDs, ONNX graph
-execution, Web Audio playback, and WAV export.
+eSpeak-compatible WASM phonemization, and ONNX Runtime Web. It prefers a custom
+FP16 WebGPU decoder in Electron/Obsidian and falls back to the official FP32
+WASM runtime. Each inference step remains visible: text normalization, phoneme
+IDs, dynamic ONNX execution, Web Audio playback, and WAV export.
 
 ## How inference is assembled
 
@@ -13,8 +14,8 @@ input text
   → normalize and split into model-safe chunks       browser/frontend.mjs
   → ephone WASM converts each chunk to IPA           browser/frontend.mjs
   → IPA symbols become blank-interspersed token IDs  browser/frontend.mjs
-  → ORT-Web/WASM runs the core ONNX graph            browser/inference.mjs
-  → ORT-Web/WASM decodes the latent to audio         browser/inference.mjs
+  → dynamic ONNX predicts durations                  browser/inference.mjs
+  → WebGPU/WASM samples and decodes audio             browser/inference.mjs
   → Web Audio queues chunks; JS writes a WAV         browser/app.mjs + browser/runtime.mjs
 ```
 
@@ -31,10 +32,11 @@ sidecar, hosted endpoint, native ONNX Runtime, or substitute browser model.
 
 ### Start the browser implementation
 
-The browser downloads its two required graphs from the public
-[Inflect-Micro-v2-ONNX model repository](https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX)
-when it creates the ONNX Runtime sessions. No local checkpoint or copied ONNX
-assets are needed to run the page.
+The browser downloads its WebGPU graphs from the public
+[Electron/WebGPU model repository](https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX)
+when it creates the ONNX Runtime sessions. If WebGPU is unavailable, it uses
+the parent model's official dynamic FP32 ONNX decoder through WASM. No local
+checkpoint or copied ONNX assets are needed to run the page.
 
 ```bash
 npm ci
@@ -59,30 +61,31 @@ while the next one is inferred; the combined audio can then be downloaded as a
 | `browser/index.html` | Explains the pipeline and provides the local inference UI. |
 | `browser/app.mjs` | Coordinates UI state, streaming Web Audio, test mode, and WAV download. |
 | `browser/frontend.mjs` | Text normalization, chunking, ephone WASM integration, and model token IDs. |
-| `browser/inference.mjs` | Downloads the ONNX graphs, creates ORT-Web/WASM sessions, and runs inference. |
+| `browser/inference.mjs` | Selects WebGPU/WASM, applies controls, and streams dynamic ONNX inference. |
 | `browser/runtime.mjs` | Deterministic noise, chunk pauses/fades, and float WAV encoding. |
 | `scripts/` | Graph export, parity checks, browser proof, and benchmarks. |
 | `source/` | Pinned upstream Python reference used for graph export and baselines. |
 <!-- markdownlint-enable MD013 -->
 
-The browser core has fixed inputs: token IDs `[1, 512]` and latent noise
-`[1, 192, 4000]`. `browser/inference.mjs` pads input IDs, supplies noise, reads
-the predicted frame count, trims the latent, and passes it to the dynamic
-decoder graph.
+The duration graph accepts dynamic token lengths and `length_scale`. Its dynamic
+acoustic outputs feed the decoder without CPU readback on WebGPU. The decoder
+accepts seeded noise and `noise_scale`, exposing the parent model's speed,
+variation, and seed controls. Long text remains punctuation-aware chunks and
+each completed waveform is queued immediately.
 
 ## Verify
 
 ```bash
 npm run verify-browser-port
-node scripts/export_browser_waveform.mjs
-.venv/bin/python scripts/compare_browser_waveform.py
 npm run benchmark-browser
 npm run benchmark-first-audio
 npm run benchmark-python-onnx
 ```
 
-`npm run benchmark-first-audio` compares time to the first decoded browser
-chunk for this repository's fixed graphs and the official dynamic ONNX pair.
+`npm run benchmark-first-audio` compares the official FP32 WASM and WebGPU paths
+with this repository's FP16 WebGPU decoder. The recorded 175-token first chunk
+was `2819 ms` on official WASM, `187 ms` on official WebGPU, and `160 ms` with
+the Electron hybrid; timings exclude model/session initialization.
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for commands and recorded
 cross-runtime results. [docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md)
 documents intentional differences from upstream Python, including phonemizer,

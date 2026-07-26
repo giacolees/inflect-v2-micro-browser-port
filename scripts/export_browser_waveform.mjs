@@ -4,6 +4,7 @@ import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright-core";
 
 const root = process.cwd();
+const loopbackOrigin = ["http:", "", "127.0.0.1"].join("/");
 const types = {
 	".html": "text/html",
 	".js": "text/javascript",
@@ -14,7 +15,7 @@ const types = {
 };
 const server = http.createServer(async (request, response) => {
 	const path = normalize(
-		join(root, new URL(request.url, "http://localhost").pathname),
+		join(root, new URL(request.url, loopbackOrigin).pathname),
 	);
 	try {
 		const body = await readFile(path);
@@ -38,26 +39,19 @@ const browser = await chromium.launch({
 try {
 	const page = await browser.newPage();
 	await page.goto(
-		`http://127.0.0.1:${server.address().port}/browser/index.html?test=1&zeroNoise=1`,
+		`${loopbackOrigin}:${server.address().port}/browser/index.html?test=1&zeroNoise=1`,
 		{ waitUntil: "networkidle", timeout: 120000 },
 	);
-	const [values, latent, ids] = await page.evaluate(() => [
+	const [values, ids] = await page.evaluate(() => [
 		Array.from(window.__inflectWaveform),
-		Array.from(window.__inflectLatent),
 		window.__inflectIds,
 	]);
 	await writeFile(
 		"artifacts/browser-zero-noise.f32",
 		Buffer.from(new Float32Array(values).buffer),
 	);
-	await writeFile(
-		"artifacts/browser-zero-noise-latent.f32",
-		Buffer.from(new Float32Array(latent).buffer),
-	);
 	await writeFile("artifacts/browser-zero-noise-ids.json", JSON.stringify(ids));
-	console.log(
-		`BROWSER_WAVEFORM_EXPORTED samples=${values.length} latent=${latent.length}`,
-	);
+	process.stdout.write(`BROWSER_WAVEFORM_EXPORTED samples=${values.length}\n`);
 } finally {
 	await browser.close();
 	server.close();

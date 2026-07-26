@@ -47,10 +47,10 @@ try {
 	page.on("pageerror", (error) =>
 		console.error(`BROWSER_PAGE_ERROR ${error.stack}`),
 	);
-	const textQuery = process.env.TEXT
-		? `text=${encodeURIComponent(process.env.TEXT)}&`
-		: "";
-	const query = `?${textQuery}test=1`;
+	const queryParams = new URLSearchParams({ test: "1" });
+	for (const name of ["TEXT", "SPEED", "VARIATION", "SEED"])
+		if (process.env[name]) queryParams.set(name.toLowerCase(), process.env[name]);
+	const query = `?${queryParams}`;
 	await page.goto(`http://127.0.0.1:${port}/browser/index.html${query}`, {
 		waitUntil: "networkidle",
 		timeout: 120000,

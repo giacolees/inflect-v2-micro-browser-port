@@ -6,70 +6,92 @@ library_name: onnxruntime
 pipeline_tag: text-to-speech
 tags:
 - onnx
-- onnxruntime
 - onnxruntime-web
+- webgpu
+- electron
+- obsidian
 - text-to-speech
-- browser
 base_model:
+- owensong/Inflect-Micro-v2-ONNX
 - owensong/Inflect-Micro-v2
 ---
 
-# Inflect Micro v2 — ONNX
+# Inflect Micro v2 — Electron/WebGPU ONNX
 
-Browser-ready ONNX exports of
-[**Inflect-Micro-v2**](https://huggingface.co/owensong/Inflect-Micro-v2), a
-fixed-voice English text-to-speech model. This repository packages the two
-graphs used by the browser implementation; it does not replace the parent
-model's Python package, documentation, evaluation, or controls.
+An Electron-oriented ONNX export of
+[Inflect-Micro-v2](https://huggingface.co/owensong/Inflect-Micro-v2). It is
+based on the
+[official dynamic ONNX export](https://huggingface.co/owensong/Inflect-Micro-v2-ONNX)
+and retains its speed, variation, and deterministic seed controls.
 
-## Parent model
-
-- **Parent model:**
-  [owensong/Inflect-Micro-v2](https://huggingface.co/owensong/Inflect-Micro-v2)
-- **Browser implementation:**
-  [giacolees/inflect-v2-micro-browser-port](https://github.com/giacolees/inflect-v2-micro-browser-port)
-
-Refer to the parent model card for architecture, evaluation, voice/data
-information, limitations, responsible use, and the original Python runtime.
-This export retains the parent model's 24 kHz mono waveform output and uses the
-same 192 latent channels.
+This repository optimizes the expensive flow/waveform decoder for WebGPU with
+FP16 internal weights while retaining FP32 graph inputs and waveform output.
+It is intended for local Chromium renderers such as Electron and Obsidian.
 
 ## Files
 
-- `inflect-core.onnx`: fixed-width text-to-latent graph.
-- `inflect-decoder.onnx`: dynamic latent-to-waveform decoder.
+- `duration.onnx`: official dynamic FP32 text-to-acoustic graph, 7 MB.
+- `decode-webgpu-fp16.onnx`: FP16-internal WebGPU flow and waveform decoder,
+  15 MB.
 
-Both graphs are required. The core input is token IDs `[1, 512]`, a token
-length, and latent noise `[1, 192, 4000]`. `inflect-core.onnx` produces a
-predicted frame length; trim the latent to that length before passing it to
-`inflect-decoder.onnx`.
+Both files are needed for the WebGPU path. The companion implementation falls
+back to the official FP32 decoder through WASM when WebGPU is unavailable.
 
-## Browser usage
+## Controls
 
-The companion browser implementation downloads these graphs directly with
-ONNX Runtime Web/WASM:
+| Control | Default | Range |
+| --- | ---: | ---: |
+| `speed` | `1.0` | `0.5–2.0` |
+| `variation` | `0.667` | `0.0–1.0` |
+| `seed` | `0` | integer |
 
-```js
-const modelBase =
-  "https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX/resolve/main";
-const core = await ort.InferenceSession.create(
-  await fetch(`${modelBase}/inflect-core.onnx`).then((response) =>
-    response.arrayBuffer(),
-  ),
-  { executionProviders: ["wasm"] },
-);
-const decoder = await ort.InferenceSession.create(
-  await fetch(`${modelBase}/inflect-decoder.onnx`).then((response) =>
-    response.arrayBuffer(),
-  ),
-  { executionProviders: ["wasm"] },
-);
-```
+Lower speed is slower; lower variation is steadier. Seed repeats the stochastic
+sample on the same runtime stack.
 
-See [`browser/inference.mjs`](https://github.com/giacolees/inflect-v2-micro-browser-port/blob/master/browser/inference.mjs)
-for complete tensor construction and latent trimming. Text normalization,
-phonemization, token mapping, noise generation, chunking, and WAV encoding are
-intentionally outside these ONNX graphs.
+The duration graph receives `length_scale = 1 / speed`. The decoder receives
+`noise_scale = variation`, and the browser creates seeded normal noise with
+`seed + chunkIndex` for repeatable long-text synthesis.
+
+## Electron benchmark
+
+Recorded in headless Chromium with ONNX Runtime Web 1.23.2, one 175-token first
+chunk, and three warm runs:
+
+| Runtime | Median first decoded chunk |
+| --- | ---: |
+| Official FP32, WASM | `2819 ms` |
+| Official FP32, WebGPU | `187 ms` |
+| WASM duration + this FP16 WebGPU decoder | **`160 ms`** |
+
+The Electron hybrid was about 14% faster than the official all-WebGPU graph and
+about 94% faster than the official WASM path for this measured first chunk.
+Timings are device-specific and exclude model download/session initialization.
+Run `npm run benchmark-first-audio` in the companion repository to reproduce
+the comparison.
+
+## Numerical comparison
+
+Native ORT comparison with the official FP32 decoder for one seeded waveform
+measured correlation `0.9998344`, RMSE `0.0011444`, and maximum absolute
+difference `0.031019`. Direct WebGPU FP16-versus-FP32 comparison measured RMSE
+`0.04685` and maximum absolute difference `0.51394`.
+
+FP16 and execution-provider arithmetic change numerical output. Complete
+listening and intelligibility acceptance is required before relying on this
+export in a product.
+
+## Browser implementation
+
+The complete Electron/browser runtime, control wiring, chunk streaming, seeded
+noise, Web Audio scheduling, and WASM fallback are in
+[`browser/inference.mjs`](https://github.com/giacolees/inflect-v2-micro-browser-port/blob/master/browser/inference.mjs)
+and the surrounding
+[browser implementation](https://github.com/giacolees/inflect-v2-micro-browser-port).
+
+The runtime executes dynamic duration in FP32/WASM and prefers WebGPU for the
+FP16 decoder. If WebGPU initialization fails, it uses the official FP32 decoder
+with WASM. Electron's exposed Node `process` is hidden only during ORT backend
+selection so ORT does not choose its Node worker path inside the renderer.
 
 ## Limitations and responsible use
 
@@ -81,12 +103,13 @@ fraudulent content; disclose synthetic audio where appropriate.
 
 ## License and attribution
 
-The ONNX graphs are exports of
-[Inflect-Micro-v2](https://huggingface.co/owensong/Inflect-Micro-v2), which is
-released under Apache-2.0. Consult the parent repository for its complete
+The graphs derive from
+[Inflect-Micro-v2](https://huggingface.co/owensong/Inflect-Micro-v2) and its
+[official ONNX export](https://huggingface.co/owensong/Inflect-Micro-v2-ONNX),
+released under Apache-2.0. Consult those parent repositories for complete
 notices and provenance. The companion browser project uses `ephone` for WASM
 phonemization; its GPL-3.0-or-later obligations apply when distributing that
-frontend, not to these graph files alone.
+frontend, not to these graphs alone.
 
 ## Citation
 
