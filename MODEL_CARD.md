@@ -33,9 +33,12 @@ It is intended for local Chromium renderers such as Electron and Obsidian.
 - `duration.onnx`: official dynamic FP32 text-to-acoustic graph, 7 MB.
 - `decode-webgpu-fp16.onnx`: FP16-internal WebGPU flow and waveform decoder,
   15 MB.
+- `decode-fp32.onnx`: official 29 MB FP32 decoder for the WASM fallback.
 
-Both files are needed for the WebGPU path. The companion implementation falls
-back to the official FP32 decoder through WASM when WebGPU is unavailable.
+The WebGPU path uses `duration.onnx` plus `decode-webgpu-fp16.onnx`. The WASM
+fallback uses `duration.onnx` plus `decode-fp32.onnx`. The FP16 decoder also
+runs under ORT-Web/WASM 1.23.2, but measured slightly slower than FP32 and may
+be less compatible with older Electron/ORT versions.
 
 ## Controls
 
@@ -60,6 +63,7 @@ chunk, and three warm runs:
 | Runtime | Median first decoded chunk |
 | --- | ---: |
 | Official FP32, WASM | `2819 ms` |
+| This FP16 decoder, WASM | `2908 ms` |
 | Official FP32, WebGPU | `187 ms` |
 | WASM duration + this FP16 WebGPU decoder | **`160 ms`** |
 

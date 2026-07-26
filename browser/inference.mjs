@@ -4,8 +4,6 @@ import { seededNormalNoise } from "/browser/runtime.mjs";
 export const SAMPLE_RATE = 24000;
 export const MODEL_BASE_URL =
 	"https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX/resolve/main";
-const OFFICIAL_MODEL_BASE_URL =
-	"https://huggingface.co/owensong/Inflect-Micro-v2-ONNX/resolve/main/onnx";
 
 function runtimeThreads() {
 	if (!globalThis.crossOriginIsolated) return 1;
@@ -24,7 +22,8 @@ function validateControls({ speed, variation, seed }) {
 		throw new RangeError("Speed must be between 0.5 and 2.0");
 	if (!Number.isFinite(variation) || variation < 0 || variation > 1)
 		throw new RangeError("Variation must be between 0 and 1");
-	if (!Number.isSafeInteger(seed)) throw new RangeError("Seed must be an integer");
+	if (!Number.isSafeInteger(seed))
+		throw new RangeError("Seed must be an integer");
 }
 
 async function createSessions(durationModel) {
@@ -54,9 +53,7 @@ async function createSessions(durationModel) {
 		}
 	}
 
-	const decoderModel = await fetchModel(
-		`${OFFICIAL_MODEL_BASE_URL}/decode.onnx`,
-	);
+	const decoderModel = await fetchModel(`${MODEL_BASE_URL}/decode-fp32.onnx`);
 	const decoder = await ort.InferenceSession.create(decoderModel, {
 		...graphOptions,
 		executionProviders: ["wasm"],
@@ -95,15 +92,18 @@ export async function createInflectInference() {
 					BigInt64Array.of(BigInt(tokens.length)),
 					[1],
 				),
-				length_scale: new ort.Tensor(
-					"float32",
-					Float32Array.of(1 / speed),
-					[],
-				),
+				length_scale: new ort.Tensor("float32", Float32Array.of(1 / speed), []),
 			});
 			const [batch, channels, frames] = durationOutput.m_p_exp.dims;
-			if (batch !== 1 || channels !== 192 || !Number.isInteger(frames) || frames < 1)
-				throw new Error(`Invalid predicted latent shape ${durationOutput.m_p_exp.dims}`);
+			if (
+				batch !== 1 ||
+				channels !== 192 ||
+				!Number.isInteger(frames) ||
+				frames < 1
+			)
+				throw new Error(
+					`Invalid predicted latent shape ${durationOutput.m_p_exp.dims}`,
+				);
 			const waveform = (
 				await runtime.decoder.run({
 					m_p_exp: durationOutput.m_p_exp,

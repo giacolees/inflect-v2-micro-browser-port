@@ -105,6 +105,12 @@ try {
 				"duration.onnx",
 				"decode-webgpu-fp16.onnx",
 			);
+			const fp16Wasm = await createSessions(
+				"wasm",
+				fp16Base,
+				"duration.onnx",
+				"decode-webgpu-fp16.onnx",
+			);
 			const output = frontend.phonemizeChunks(text)[0];
 			const firstAudio = async ([duration, decode]) => {
 				const tokens = BigInt64Array.from(output.ids, BigInt);
@@ -120,17 +126,17 @@ try {
 				return (
 					await decode.run({
 						m_p_exp: durationOutput.m_p_exp,
-					logs_p_exp: durationOutput.logs_p_exp,
-					y_mask: durationOutput.y_mask,
-					zp_noise: new ort.Tensor(
-						"float32",
-						seededNormalNoise(
-							0,
-							durationOutput.m_p_exp.dims[1],
-							durationOutput.m_p_exp.dims[2],
+						logs_p_exp: durationOutput.logs_p_exp,
+						y_mask: durationOutput.y_mask,
+						zp_noise: new ort.Tensor(
+							"float32",
+							seededNormalNoise(
+								0,
+								durationOutput.m_p_exp.dims[1],
+								durationOutput.m_p_exp.dims[2],
+							),
+							durationOutput.m_p_exp.dims,
 						),
-						durationOutput.m_p_exp.dims,
-					),
 						noise_scale: new ort.Tensor("float32", Float32Array.of(0.667), []),
 					})
 				).waveform.data;
@@ -164,6 +170,7 @@ try {
 				officialWasm: await measure(() => firstAudio(official)),
 				officialWebgpu: await measure(() => firstAudio(webgpu)),
 				fp16Webgpu: await measure(() => firstAudio(fp16Webgpu)),
+				fp16Wasm: await measure(() => firstAudio(fp16Wasm)),
 				mixedWasmFp16Webgpu: await measure(() =>
 					firstAudio([official[0], fp16Webgpu[1]]),
 				),
@@ -175,7 +182,9 @@ try {
 		},
 		{ text, runs, officialBase, fp16Base },
 	);
-	process.stdout.write(`ONNX_FIRST_AUDIO_BENCHMARK ${JSON.stringify(result)}\n`);
+	process.stdout.write(
+		`ONNX_FIRST_AUDIO_BENCHMARK ${JSON.stringify(result)}\n`,
+	);
 } finally {
 	await browser.close();
 	await new Promise((resolve) => server.close(resolve));

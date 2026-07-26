@@ -34,8 +34,9 @@ sidecar, hosted endpoint, native ONNX Runtime, or substitute browser model.
 
 The browser downloads its WebGPU graphs from the public
 [Electron/WebGPU model repository](https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX)
-when it creates the ONNX Runtime sessions. If WebGPU is unavailable, it uses
-the parent model's official dynamic FP32 ONNX decoder through WASM. No local
+when it creates the ONNX Runtime sessions. If WebGPU is unavailable, it loads
+the packaged official FP32 decoder through WASM instead. The duration graph is
+shared, so each runtime downloads only the two files it needs. No local
 checkpoint or copied ONNX assets are needed to run the page.
 
 ```bash
