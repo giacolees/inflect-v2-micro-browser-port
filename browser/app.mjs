@@ -119,7 +119,7 @@ async function main() {
 		"The browser frontend and ONNX Runtime sessions are ready.";
 	document.querySelector("#runtime-state").textContent =
 		inference.runtime.provider.includes("webgpu")
-			? "Ready · WASM duration + WebGPU FP16 decoder"
+			? "Ready · WASM duration + WebGPU FP32 decoder"
 			: `Ready · WASM · ${inference.runtime.threads} thread(s)`;
 	button.disabled = false;
 	window.__inflectLastResult = null;

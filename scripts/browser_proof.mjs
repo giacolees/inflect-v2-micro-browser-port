@@ -49,7 +49,8 @@ try {
 	);
 	const queryParams = new URLSearchParams({ test: "1" });
 	for (const name of ["TEXT", "SPEED", "VARIATION", "SEED"])
-		if (process.env[name]) queryParams.set(name.toLowerCase(), process.env[name]);
+		if (process.env[name])
+			queryParams.set(name.toLowerCase(), process.env[name]);
 	const query = `?${queryParams}`;
 	await page.goto(`http://127.0.0.1:${port}/browser/index.html${query}`, {
 		waitUntil: "networkidle",

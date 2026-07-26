@@ -18,27 +18,24 @@ base_model:
 
 # Inflect Micro v2 — Electron/WebGPU ONNX
 
-An Electron-oriented ONNX export of
+Electron-oriented packaging of the official FP32 dynamic ONNX export for
 [Inflect-Micro-v2](https://huggingface.co/owensong/Inflect-Micro-v2). It is
-based on the
-[official dynamic ONNX export](https://huggingface.co/owensong/Inflect-Micro-v2-ONNX)
+based on and linked to the
+[official ONNX repository](https://huggingface.co/owensong/Inflect-Micro-v2-ONNX)
 and retains its speed, variation, and deterministic seed controls.
 
-This repository optimizes the expensive flow/waveform decoder for WebGPU with
-FP16 internal weights while retaining FP32 graph inputs and waveform output.
-It is intended for local Chromium renderers such as Electron and Obsidian.
+The graphs remain FP32. The companion implementation accelerates the expensive
+waveform decoder with WebGPU in Chromium/Electron and uses the same decoder
+through WASM when WebGPU is unavailable.
 
 ## Files
 
-- `duration.onnx`: official dynamic FP32 text-to-acoustic graph, 7 MB.
-- `decode-webgpu-fp16.onnx`: FP16-internal WebGPU flow and waveform decoder,
-  15 MB.
-- `decode-fp32.onnx`: official 29 MB FP32 decoder for the WASM fallback.
+- `duration.onnx`: dynamic FP32 text-to-acoustic graph, 7 MB.
+- `decode-fp32.onnx`: dynamic FP32 flow and waveform decoder, 29 MB.
 
-The WebGPU path uses `duration.onnx` plus `decode-webgpu-fp16.onnx`. The WASM
-fallback uses `duration.onnx` plus `decode-fp32.onnx`. The FP16 decoder also
-runs under ORT-Web/WASM 1.23.2, but measured slightly slower than FP32 and may
-be less compatible with older Electron/ORT versions.
+Both graph files are required because the neural model is split at the acoustic
+representation. There is no separate WebGPU model: `decode-fp32.onnx` runs with
+both WebGPU and WASM in ONNX Runtime Web.
 
 ## Controls
 
@@ -72,46 +69,35 @@ Recorded with one 175-token first chunk and three warm runs.
 
 | Runtime | Median first decoded chunk |
 | --- | ---: |
-| Official FP32, WASM | `2819 ms` |
-| This FP16 decoder, WASM | `2908 ms` |
-| Official FP32, WebGPU | `187 ms` |
-| WASM duration + this FP16 WebGPU decoder | **`160 ms`** |
+| FP32 duration + decoder, WASM | `2874 ms` |
+| FP32 duration + decoder, WebGPU | **`187 ms`** |
+| FP32 WASM duration + FP32 WebGPU decoder | `198 ms` |
 
-The Electron hybrid was about 14% faster than the official all-WebGPU graph and
-about 94% faster than the official WASM path for this measured first chunk.
-Timings are device-specific and exclude model download/session initialization.
-Run `npm run benchmark-first-audio` in the companion repository to reproduce
-the comparison.
-
-## Numerical comparison
-
-Native ORT comparison with the official FP32 decoder for one seeded waveform
-measured correlation `0.9998344`, RMSE `0.0011444`, and maximum absolute
-difference `0.031019`. Direct WebGPU FP16-versus-FP32 comparison measured RMSE
-`0.04685` and maximum absolute difference `0.51394`.
-
-FP16 and execution-provider arithmetic change numerical output. Complete
-listening and intelligibility acceptance is required before relying on this
-export in a product.
+The companion Electron runtime uses the hybrid path: duration through WASM for
+stable dynamic alignment and waveform decoding through WebGPU. If WebGPU is
+unavailable, both graphs run through WASM. Timings are device-specific. Run
+`npm run benchmark-first-audio` in the companion repository to reproduce the
+comparison.
 
 ## Browser implementation
 
 The complete Electron/browser runtime, control wiring, chunk streaming, seeded
-noise, Web Audio scheduling, and WASM fallback are in
+noise, Web Audio scheduling, and provider fallback are in
 [`browser/inference.mjs`](https://github.com/giacolees/inflect-v2-micro-browser-port/blob/master/browser/inference.mjs)
 and the surrounding
 [browser implementation](https://github.com/giacolees/inflect-v2-micro-browser-port).
 
-The runtime executes dynamic duration in FP32/WASM and prefers WebGPU for the
-FP16 decoder. If WebGPU initialization fails, it uses the official FP32 decoder
-with WASM. Electron's exposed Node `process` is hidden only during ORT backend
-selection so ORT does not choose its Node worker path inside the renderer.
+Electron's exposed Node `process` is hidden only during ORT backend selection so
+ORT does not choose its Node worker path inside an Obsidian/Electron renderer.
+The application downloads the two model files once and relies on the browser or
+application cache thereafter.
 
 ## Limitations and responsible use
 
 This export inherits the parent model's scope: English only, one fixed
 synthetic voice, and no zero-shot voice cloning. Numbers, abbreviations,
-unusual names, and long-text transitions remain frontend-sensitive. Do not use
+unusual names, and long-text transitions remain frontend-sensitive. WebGPU and
+WASM arithmetic can differ slightly even with the same FP32 graph. Do not use
 generated speech to impersonate a real person, deceive listeners, or create
 fraudulent content; disclose synthetic audio where appropriate.
 

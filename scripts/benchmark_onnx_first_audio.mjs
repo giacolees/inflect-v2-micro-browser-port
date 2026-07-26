@@ -8,10 +8,7 @@ const loopbackOrigin =
 	process.env.BENCHMARK_ORIGIN ?? ["http:", "", "127.0.0.1"].join("/");
 const hubOrigin =
 	process.env.HF_HUB_ORIGIN ?? ["https:", "", "huggingface.co"].join("/");
-const officialBase = `${hubOrigin}/owensong/Inflect-Micro-v2-ONNX/resolve/main/onnx`;
-const fp16Base =
-	process.env.FP16_MODEL_BASE ??
-	`${hubOrigin}/giacolees/Inflect-Micro-v2-ONNX/resolve/main`;
+const modelBase = `${hubOrigin}/giacolees/Inflect-Micro-v2-ONNX/resolve/main`;
 const runs = Number(process.env.RUNS ?? 3);
 const text =
 	process.env.TEXT ??
@@ -65,56 +62,35 @@ try {
 		url: `${pageOrigin}/node_modules/onnxruntime-web/dist/ort.webgpu.min.js`,
 	});
 	const result = await page.evaluate(
-		async ({ text, runs, officialBase, fp16Base }) => {
+		async ({ text, runs, modelBase }) => {
 			const { createInflectFrontend } = await import("/browser/frontend.mjs");
 			const { seededNormalNoise } = await import("/browser/runtime.mjs");
-
-			const fetchModel = async (url) => {
-				const response = await fetch(url);
-				if (!response.ok) throw new Error(`Could not download ${url}`);
+			const fetchModel = async (name) => {
+				const response = await fetch(`${modelBase}/${name}`);
+				if (!response.ok) throw new Error(`Could not download ${name}`);
 				return response.arrayBuffer();
 			};
 			ort.env.wasm.wasmPaths = "/node_modules/onnxruntime-web/dist/";
 			ort.env.wasm.numThreads = 1;
-			const createSessions = (
-				provider,
-				base = officialBase,
-				durationName = "duration.onnx",
-				decodeName = "decode.onnx",
-			) =>
-				Promise.all([
-					fetchModel(`${base}/${durationName}`).then((model) =>
-						ort.InferenceSession.create(model, {
-							executionProviders: [provider],
-							graphOptimizationLevel: "all",
-						}),
-					),
-					fetchModel(`${base}/${decodeName}`).then((model) =>
-						ort.InferenceSession.create(model, {
-							executionProviders: [provider],
-							graphOptimizationLevel: "all",
-						}),
-					),
-				]);
+			const durationModel = await fetchModel("duration.onnx");
+			const decoderModel = await fetchModel("decode-fp32.onnx");
+			const createSessions = async (provider) => [
+				await ort.InferenceSession.create(durationModel, {
+					executionProviders: [provider],
+					graphOptimizationLevel: "all",
+				}),
+				await ort.InferenceSession.create(decoderModel, {
+					executionProviders: [provider],
+					graphOptimizationLevel: "all",
+				}),
+			];
 			const frontend = await createInflectFrontend();
-			const official = await createSessions("wasm");
+			const wasm = await createSessions("wasm");
 			const webgpu = await createSessions("webgpu");
-			const fp16Webgpu = await createSessions(
-				"webgpu",
-				fp16Base,
-				"duration.onnx",
-				"decode-webgpu-fp16.onnx",
-			);
-			const fp16Wasm = await createSessions(
-				"wasm",
-				fp16Base,
-				"duration.onnx",
-				"decode-webgpu-fp16.onnx",
-			);
 			const output = frontend.phonemizeChunks(text)[0];
-			const firstAudio = async ([duration, decode]) => {
+			const firstAudio = async ([duration, decoder]) => {
 				const tokens = BigInt64Array.from(output.ids, BigInt);
-				const durationOutput = await duration.run({
+				const acoustic = await duration.run({
 					tokens: new ort.Tensor("int64", tokens, [1, tokens.length]),
 					lengths: new ort.Tensor(
 						"int64",
@@ -123,23 +99,21 @@ try {
 					),
 					length_scale: new ort.Tensor("float32", Float32Array.of(1), []),
 				});
-				return (
-					await decode.run({
-						m_p_exp: durationOutput.m_p_exp,
-						logs_p_exp: durationOutput.logs_p_exp,
-						y_mask: durationOutput.y_mask,
-						zp_noise: new ort.Tensor(
-							"float32",
-							seededNormalNoise(
-								0,
-								durationOutput.m_p_exp.dims[1],
-								durationOutput.m_p_exp.dims[2],
-							),
-							durationOutput.m_p_exp.dims,
+				return decoder.run({
+					m_p_exp: acoustic.m_p_exp,
+					logs_p_exp: acoustic.logs_p_exp,
+					y_mask: acoustic.y_mask,
+					zp_noise: new ort.Tensor(
+						"float32",
+						seededNormalNoise(
+							0,
+							acoustic.m_p_exp.dims[1],
+							acoustic.m_p_exp.dims[2],
 						),
-						noise_scale: new ort.Tensor("float32", Float32Array.of(0.667), []),
-					})
-				).waveform.data;
+						acoustic.m_p_exp.dims,
+					),
+					noise_scale: new ort.Tensor("float32", Float32Array.of(0.667), []),
+				});
 			};
 			const measure = async (run) => {
 				await run();
@@ -155,32 +129,15 @@ try {
 					medianMs: values[Math.floor(values.length / 2)],
 				};
 			};
-			const officialWaveform = await firstAudio([official[0], webgpu[1]]);
-			const fp16Waveform = await firstAudio([official[0], fp16Webgpu[1]]);
-			let squaredError = 0;
-			let maxError = 0;
-			for (let index = 0; index < officialWaveform.length; index += 1) {
-				const error = officialWaveform[index] - fp16Waveform[index];
-				squaredError += error * error;
-				maxError = Math.max(maxError, Math.abs(error));
-			}
 			return {
 				firstChunkTokenIds: output.ids.length,
 				chunks: frontend.phonemizeChunks(text).length,
-				officialWasm: await measure(() => firstAudio(official)),
-				officialWebgpu: await measure(() => firstAudio(webgpu)),
-				fp16Webgpu: await measure(() => firstAudio(fp16Webgpu)),
-				fp16Wasm: await measure(() => firstAudio(fp16Wasm)),
-				mixedWasmFp16Webgpu: await measure(() =>
-					firstAudio([official[0], fp16Webgpu[1]]),
-				),
-				fp16VsOfficialWebgpu: {
-					maxAbsError: maxError,
-					rmse: Math.sqrt(squaredError / officialWaveform.length),
-				},
+				fp32Wasm: await measure(() => firstAudio(wasm)),
+				fp32Webgpu: await measure(() => firstAudio(webgpu)),
+				electronHybrid: await measure(() => firstAudio([wasm[0], webgpu[1]])),
 			};
 		},
-		{ text, runs, officialBase, fp16Base },
+		{ text, runs, modelBase },
 	);
 	process.stdout.write(
 		`ONNX_FIRST_AUDIO_BENCHMARK ${JSON.stringify(result)}\n`,

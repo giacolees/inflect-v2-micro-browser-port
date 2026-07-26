@@ -35,9 +35,7 @@ async function createSessions(durationModel) {
 	});
 	if (navigator.gpu) {
 		try {
-			const decoderModel = await fetchModel(
-				`${MODEL_BASE_URL}/decode-webgpu-fp16.onnx`,
-			);
+			const decoderModel = await fetchModel(`${MODEL_BASE_URL}/decode-fp32.onnx`);
 			const decoder = await ort.InferenceSession.create(decoderModel, {
 				...graphOptions,
 				executionProviders: ["webgpu"],
@@ -67,8 +65,8 @@ async function createSessions(durationModel) {
 }
 
 /**
- * Runs dynamic duration on WASM and prefers an FP16 WebGPU decoder in Electron,
- * with an official FP32 WASM fallback. Chunks are exposed for immediate playback.
+ * Runs dynamic duration on WASM and prefers the official FP32 decoder on WebGPU,
+ * with an FP32 WASM fallback. Chunks are exposed for immediate playback.
  */
 export async function createInflectInference() {
 	// Electron renderers expose Node's process. Hide it while ORT selects a web

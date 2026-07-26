@@ -2,9 +2,9 @@
 
 A compact reference implementation of browser-only text-to-speech with
 [`owensong/Inflect-Micro-v2`](https://huggingface.co/owensong/Inflect-Micro-v2),
-eSpeak-compatible WASM phonemization, and ONNX Runtime Web. It prefers a custom
-FP16 WebGPU decoder in Electron/Obsidian and falls back to the official FP32
-WASM runtime. Each inference step remains visible: text normalization, phoneme
+eSpeak-compatible WASM phonemization, and ONNX Runtime Web. It runs the official
+FP32 decoder through WebGPU in Electron/Obsidian and falls back to WASM. Each
+inference step remains visible: text normalization, phoneme
 IDs, dynamic ONNX execution, Web Audio playback, and WAV export.
 
 ## How inference is assembled
@@ -34,10 +34,9 @@ sidecar, hosted endpoint, native ONNX Runtime, or substitute browser model.
 
 The browser downloads its WebGPU graphs from the public
 [Electron/WebGPU model repository](https://huggingface.co/giacolees/Inflect-Micro-v2-ONNX)
-when it creates the ONNX Runtime sessions. If WebGPU is unavailable, it loads
-the packaged official FP32 decoder through WASM instead. The duration graph is
-shared, so each runtime downloads only the two files it needs. No local
-checkpoint or copied ONNX assets are needed to run the page.
+when it creates the ONNX Runtime sessions. The same FP32 decoder runs through
+WebGPU or WASM, so only two model files are required. No local checkpoint or
+copied ONNX assets are needed to run the page.
 
 ```bash
 npm ci
@@ -83,10 +82,10 @@ npm run benchmark-first-audio
 npm run benchmark-python-onnx
 ```
 
-`npm run benchmark-first-audio` compares the official FP32 WASM and WebGPU paths
-with this repository's FP16 WebGPU decoder. The recorded 175-token first chunk
-was `2819 ms` on official WASM, `187 ms` on official WebGPU, and `160 ms` with
-the Electron hybrid; timings exclude model/session initialization.
+`npm run benchmark-first-audio` compares FP32 WASM, FP32 WebGPU, and the
+Electron hybrid. The recorded 175-token first chunk was `2874 ms` on WASM,
+`187 ms` on all-WebGPU, and `198 ms` with WASM duration plus WebGPU decoding;
+timings exclude model/session initialization.
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for commands and recorded
 cross-runtime results. [docs/SOURCE_DIFFERENCES.md](docs/SOURCE_DIFFERENCES.md)
 documents intentional differences from upstream Python, including phonemizer,
