@@ -57,8 +57,18 @@ The duration graph receives `length_scale = 1 / speed`. The decoder receives
 
 ## Electron benchmark
 
-Recorded in headless Chromium with ONNX Runtime Web 1.23.2, one 175-token first
-chunk, and three warm runs:
+Recorded with one 175-token first chunk and three warm runs.
+
+### Benchmark environment
+
+- MacBook Pro 14-inch (`MacBookPro18,3`)
+- Apple M1 Pro: 8-core CPU (6 performance, 2 efficiency), 14-core GPU
+- 16 GB unified memory
+- macOS 26.3 (`25D125`)
+- Google Chrome 150.0.7871.184, headless
+- ONNX Runtime Web 1.23.2
+- WASM comparisons use one thread; WebGPU uses the M1 Pro GPU through Metal
+- Model download and session initialization are excluded
 
 | Runtime | Median first decoded chunk |
 | --- | ---: |
